@@ -1,0 +1,54 @@
+spring:
+  application:
+    name: parking-backend
+  profiles:
+    active: development
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        format_sql: false
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+
+server:
+  port: 8080
+  # Cookie de sesion (revision OWASP A05, 2026-09-29): HttpOnly + SameSite=Lax. "Secure" hace que
+  # el navegador solo la envie por HTTPS: activarla (SESSION_COOKIE_SECURE=true) al desplegar con
+  # HTTPS; desactivada por defecto porque desarrollo y el stack local sirven HTTP.
+  servlet:
+    session:
+      cookie:
+        http-only: true
+        same-site: lax
+        secure: ${SESSION_COOKIE_SECURE:false}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} %-5level [%thread] %logger{36} - %msg%n"
+  level:
+    root: INFO
+    com.parking: INFO
+    # Nunca elevar a DEBUG en produccion: Spring Security en DEBUG puede volcar detalles de
+    # autenticacion en logs (prompt.md §35, RNF-013).
+    org.springframework.security: INFO
+
+# Propiedades propias de la aplicacion (BR-026 zona horaria, ADR-004 CORS).
+parking:
+  timezone: America/Bogota
+  security:
+    cookie-secure: ${SESSION_COOKIE_SECURE:false}
+  cors:
+    allowed-origins: http://localhost:5173

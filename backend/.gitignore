@@ -1,0 +1,15 @@
+target/
+*.class
+
+# SQLite de desarrollo: se genera por Flyway al arrancar (V1__init.sql + V2__seed_data.sql),
+# nunca se versiona (prompt.md §16 - persistente en archivo, pero no es un artefacto de repo).
+data/*.db
+data/*.db-*
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# OS
+.DS_Store

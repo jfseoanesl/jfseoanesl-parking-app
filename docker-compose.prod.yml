@@ -1,0 +1,81 @@
+# Fase 11 - Contenedorizacion. Stack orientado a produccion (MySQL, decisions/ADR-002). Lee
+# credenciales y configuracion de un archivo .env en la raiz (copiar de .env.example). La
+# verificacion end-to-end del cambio SQLite -> MySQL es el entregable explicito de la Fase 12;
+# este archivo provee la infraestructura para esa verificacion, no reemplaza esa fase.
+#
+# Uso:
+#   cp .env.example .env   # editar DB_USER/DB_PASSWORD/CORS_ALLOWED_ORIGINS antes de arrancar
+#   docker compose -f docker-compose.prod.yml up --build -d
+#   Frontend: http://localhost:8091
+#   Backend (acceso directo, opcional): http://localhost:18090
+#   MySQL (acceso directo, opcional, ej. para inspeccion con un cliente): localhost:13306
+
+# Nombre de proyecto propio: sin esto, al estar en la misma carpeta que docker-compose.yml, ambos
+# stacks comparten el proyecto "parking" y levantar uno reemplaza los contenedores del otro.
+name: parking-prod
+
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: ${DB_NAME:-parking}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    ports:
+      - "13306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${DB_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  backend:
+    build: ./backend
+    environment:
+      SPRING_PROFILES_ACTIVE: production
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: ${DB_NAME:-parking}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      # false por defecto: el mysql:8.4 de este compose no trae certificados propios. Para un
+      # despliegue real detras de infraestructura con TLS, sobreescribir a true en .env.
+      DB_USE_SSL: ${DB_USE_SSL:-false}
+      # Requerido cuando DB_USE_SSL=false (MySQL 8, caching_sha2_password). Aceptable aqui porque el
+      # trafico backend<->mysql va por la red interna de Docker; con SSL real, poner false.
+      DB_ALLOW_PUBLIC_KEY_RETRIEVAL: ${DB_ALLOW_PUBLIC_KEY_RETRIEVAL:-true}
+      PARKING_TIMEZONE: ${PARKING_TIMEZONE:-America/Bogota}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:8091}
+      # Cookies solo por HTTPS (revision OWASP A05): true cuando un proxy termine TLS delante.
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
+      # Primer administrador (ADR-007): solo se usa si aun no existe ninguno. Retirar la contraseña
+      # del .env despues del primer arranque.
+      PARKING_BOOTSTRAP_ADMIN_USERNAME: ${PARKING_BOOTSTRAP_ADMIN_USERNAME:-}
+      PARKING_BOOTSTRAP_ADMIN_FULL_NAME: ${PARKING_BOOTSTRAP_ADMIN_FULL_NAME:-}
+      PARKING_BOOTSTRAP_ADMIN_PASSWORD: ${PARKING_BOOTSTRAP_ADMIN_PASSWORD:-}
+    depends_on:
+      mysql:
+        condition: service_healthy
+    ports:
+      - "18090:8080"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "8091:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  mysql_data:

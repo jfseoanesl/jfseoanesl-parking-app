@@ -1,0 +1,34 @@
+# Fase 11 - Contenedorizacion. Stack de desarrollo/demo: SQLite en archivo (perfil
+# "development", igual que "mvn spring-boot:run" sin Docker), sin necesidad de configurar nada
+# mas. Para el stack orientado a produccion (MySQL) ver docker-compose.prod.yml.
+#
+# Uso: docker compose up --build
+#   Frontend: http://localhost:8081
+#   Backend (acceso directo, opcional - normalmente basta con el frontend): http://localhost:18080
+
+services:
+  backend:
+    build: ./backend
+    environment:
+      SPRING_PROFILES_ACTIVE: development
+    volumes:
+      - backend_data:/app/data
+    ports:
+      - "18080:8080"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "8081:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  backend_data:

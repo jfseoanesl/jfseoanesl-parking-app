@@ -1,0 +1,137 @@
+@import "tailwindcss";
+
+/* Fuentes empaquetadas localmente (no CDN): la PWA debe funcionar sin red (BR-019). */
+@import "@fontsource/fira-sans/latin-400.css";
+@import "@fontsource/fira-sans/latin-500.css";
+@import "@fontsource/fira-sans/latin-600.css";
+@import "@fontsource/fira-sans/latin-700.css";
+@import "@fontsource/fira-code/latin-500.css";
+@import "@fontsource/fira-code/latin-600.css";
+@import "@fontsource/fira-code/latin-700.css";
+
+/*
+ * Design tokens (09-ux-specification.md §3.2, identidad visual §3.4). Alias semantico sobre la
+ * paleta de Tailwind para no duplicar tonos a mano: nunca se usa blue-/green-/slate- directo en
+ * los componentes, siempre el token semantico.
+ */
+@theme {
+  --font-sans: "Fira Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Fira Code", ui-monospace, "Cascadia Mono", monospace;
+
+  --color-primary-50: var(--color-blue-50);
+  --color-primary-100: var(--color-blue-100);
+  --color-primary-200: var(--color-blue-200);
+  --color-primary-500: var(--color-blue-500);
+  --color-primary-600: var(--color-blue-600);
+  --color-primary-700: var(--color-blue-700);
+  --color-primary-800: var(--color-blue-800);
+  --color-primary-900: var(--color-blue-900);
+
+  --color-success-50: var(--color-emerald-50);
+  --color-success-100: var(--color-emerald-100);
+  --color-success-200: var(--color-emerald-200);
+  --color-success-500: var(--color-emerald-500);
+  --color-success-600: var(--color-emerald-600);
+  --color-success-700: var(--color-emerald-700);
+  --color-success-800: var(--color-emerald-800);
+
+  --color-danger-50: var(--color-red-50);
+  --color-danger-100: var(--color-red-100);
+  --color-danger-200: var(--color-red-200);
+  --color-danger-500: var(--color-red-500);
+  --color-danger-600: var(--color-red-600);
+  --color-danger-700: var(--color-red-700);
+  --color-danger-800: var(--color-red-800);
+
+  --color-warning-50: var(--color-amber-50);
+  --color-warning-100: var(--color-amber-100);
+  --color-warning-200: var(--color-amber-200);
+  --color-warning-500: var(--color-amber-500);
+  --color-warning-600: var(--color-amber-600);
+  --color-warning-700: var(--color-amber-700);
+  --color-warning-800: var(--color-amber-800);
+
+  --color-neutral-50: var(--color-slate-50);
+  --color-neutral-100: var(--color-slate-100);
+  --color-neutral-200: var(--color-slate-200);
+  --color-neutral-300: var(--color-slate-300);
+  --color-neutral-400: var(--color-slate-400);
+  --color-neutral-500: var(--color-slate-500);
+  --color-neutral-600: var(--color-slate-600);
+  --color-neutral-700: var(--color-slate-700);
+  --color-neutral-800: var(--color-slate-800);
+  --color-neutral-900: var(--color-slate-900);
+  --color-neutral-950: var(--color-slate-950);
+
+  /* Placa colombiana: fondo amarillo, texto y borde negros (PlateBadge). */
+  --color-plate-yellow: var(--color-yellow-400);
+
+  /* La placa es el elemento visual principal (prompt.md §7). */
+  --text-plate: 1.875rem;
+  --text-plate--line-height: 2.25rem;
+  --text-plate--font-weight: 700;
+
+  --animate-toast-in: toast-in 200ms ease-out;
+  --animate-fade-in: fade-in 150ms ease-out;
+
+  @keyframes toast-in {
+    from { opacity: 0; transform: translateY(0.5rem); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+}
+
+@layer base {
+  body {
+    @apply bg-neutral-50 font-sans text-neutral-900 antialiased;
+  }
+
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-primary-600;
+  }
+
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  a[href],
+  select:not(:disabled),
+  summary {
+    cursor: pointer;
+  }
+
+  dialog::backdrop {
+    background: rgb(15 23 42 / 0.55);
+  }
+}
+
+/* Capa de componentes (09-ux-specification.md §3.1): un unico estilo por proposito. */
+@layer components {
+  .card {
+    @apply rounded-xl border border-neutral-200 bg-white shadow-sm;
+  }
+
+  .input {
+    @apply block min-h-11 w-full rounded-lg border border-neutral-300 bg-white px-3 text-base text-neutral-900 transition-colors duration-150 placeholder:text-neutral-400 hover:border-neutral-400 focus:border-primary-600 focus:ring-4 focus:ring-primary-100 focus:outline-none disabled:bg-neutral-100 aria-[invalid=true]:border-danger-600;
+  }
+
+  .label {
+    @apply mb-1.5 block text-sm font-medium text-neutral-700;
+  }
+
+  .section-title {
+    @apply text-xs font-semibold tracking-wider text-neutral-500 uppercase;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -1,0 +1,21 @@
+# Perfil de pruebas automatizadas: SQLite en memoria (unico caso permitido por prompt.md §16:
+# "jdbc:sqlite::memory:"). maximum-pool-size=1 es obligatorio: cada conexion nueva a
+# ":memory:" en SQLite es una base de datos distinta y vacia; con un pool >1 conexion el
+# esquema/datos de una request desaparecerian en la siguiente.
+spring:
+  datasource:
+    # foreign_keys=on: igual que en development; sin esto las pruebas no verificaban la integridad
+    # referencial (SQLite la trae desactivada por defecto). Ver SchemaIntegrityTest.
+    url: "jdbc:sqlite::memory:?foreign_keys=on"
+    driver-class-name: org.sqlite.JDBC
+    hikari:
+      maximum-pool-size: 1
+  jpa:
+    database-platform: org.hibernate.community.dialect.SQLiteDialect
+  flyway:
+    # {vendor} = motor detectado (sqlite | mysql): migraciones propias de cada motor, ver db/vendor/.
+    locations: classpath:db/migration,classpath:db/seed,classpath:db/vendor/{vendor}
+
+logging:
+  level:
+    com.parking: DEBUG

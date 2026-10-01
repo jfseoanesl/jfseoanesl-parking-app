@@ -1,0 +1,35 @@
+# ADR-005 — Notas de compatibilidad: Spring Boot 4 / Flyway 12 / Vite 8
+
+**Estado:** Aceptado (2026-09-22) — nota técnica, no una decisión de diseño de negocio.
+
+## Contexto
+
+Durante la implementación de la Fase 4 (Foundation) se descubrieron varios cambios de empaquetado en versiones recientes de las herramientas del stack (`decisions/ADR-001-stack-tecnologico.md`) que no son evidentes desde la documentación de alto nivel y que habrían causado errores de compilación/arranque confusos si no quedan registrados. Se documentan aquí para que futuras fases (o futuros desarrolladores) no repitan la misma investigación.
+
+## Hallazgos
+
+1. **Flyway requiere `spring-boot-starter-flyway`.** Desde Spring Boot 4, tener `flyway-core` en el classpath ya no activa la autoconfiguración de Flyway (a diferencia de Boot 3.x). Es obligatorio agregar la dependencia `org.springframework.boot:spring-boot-starter-flyway`.
+
+2. **Flyway solo soporta SQLite desde la version 12.3.0**, vía el módulo `org.flywaydb:flyway-database-nc-sqlite` (no existe en versiones anteriores ni en `flyway-community-db-support`). Esto obligó a usar Spring Boot **4.1.1** (gestiona Flyway 12.4.0) en vez de la serie 3.x (gestiona Flyway ≤ 11.x). Ver `decisions/ADR-002-persistencia-sqlite.md`.
+
+3. **Jackson 3.** Spring Boot 4 migró a Jackson 3: las clases de databind (`ObjectMapper`, etc.) ahora viven en el paquete `tools.jackson.databind.*` (artefacto `tools.jackson.core:jackson-databind`), no en `com.fasterxml.jackson.databind.*`. Las anotaciones (`@JsonProperty`, etc.) siguen en `com.fasterxml.jackson.annotation`.
+
+4. **`AutoConfigureMockMvc` se movió.** Ahora vive en `org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc` (artefacto `spring-boot-webmvc-test`), no en `org.springframework.boot.test.autoconfigure.web.servlet`. El módulo `spring-boot-starter-test` de Boot 4 ya no trae todo lo que traía en Boot 3; para recuperar ese comportamiento "todo incluido" (MockMvc, Security Test, etc.) hay que depender de `org.springframework.boot:spring-boot-starter-test-classic` en vez de (o ademas de) `spring-boot-starter-test`.
+
+5. **CSRF con cookie en Spring Security 6+/7 es diferido por defecto.** `CookieCsrfTokenRepository` no escribe la cookie `XSRF-TOKEN` en cada request salvo que algo lea `CsrfToken#getToken()` explícitamente. Para una SPA que necesita la cookie disponible antes de su primer POST, hace falta el filtro `CsrfCookieFilter` (patrón documentado oficialmente por Spring Security para "CSRF con SPA") + `CsrfTokenRequestAttributeHandler` en vez del manejador Xor por defecto. Implementado en `infrastructure/security/CsrfCookieFilter.java` y `SecurityConfig.java`.
+
+6. **El dialecto community de Hibernate para SQLite (7.4.5.Final) no puede releer columnas `DATE`/`TIME`** (`LocalDate`/`LocalTime`) a través del driver `org.xerial:sqlite-jdbc`: su `getTimestamp()`/`getDate()` exige el formato estricto `"yyyy-MM-dd HH:mm:ss.SSSSSSSSS"` incluso para un valor solo-fecha como `"2026-01-01"`, y lanza `ParseException` ("Unparseable date"/"Error parsing date"/"Error parsing time stamp") — ocurre tanto con datos sembrados a mano como con filas insertadas por el propio Hibernate, o sea **no es un problema de formato del seed, es una incompatibilidad real del dialecto con este driver**. Los campos `Instant`/`TIMESTAMP` no tienen este problema (funcionan de forma fiable). **Solución aplicada:** en `TariffEntity` (la única entidad con columnas `DATE`/`TIME`), `startTime`/`endTime`/`validFrom`/`validTo` se mapean como `String` en vez de `LocalTime`/`LocalDate`; la conversión a los tipos de dominio ocurre manualmente en `TariffRepositoryAdapter`. Cualquier entidad futura con columnas `DATE`/`TIME` (ej. cuando se implemente la administración de tarifas en Fase 7) debe seguir el mismo patrón. Ver `TariffRepositoryAdapterDiagnosticTest` (prueba de regresión). Además, comparar fechas en una cláusula `WHERE` (ej. vigencia de tarifas) requiere una consulta **nativa** comparando como texto ISO-8601 (`SpringDataTariffRepository.findActiveForVehicleType`), no JPQL con un parámetro `LocalDate` — el binding JPQL del parámetro produce el mismo tipo de incompatibilidad.
+
+7. **Vite 8 (rolldown) falló en este entorno** (Windows + Node v22.10.0, por debajo del mínimo `22.12.0` que exige el toolchain más reciente): faltaba el binding nativo de `rolldown` para `win32-x64-msvc`. Se fijó el frontend a **Vite 6.4.3** + `@vitejs/plugin-react@4.7.0` (Rollup clásico, sin binarios nativos adicionales), que es la línea estable y ampliamente probada en el momento de esta implementación.
+
+8. **`SecurityMockMvcRequestPostProcessors.csrf()` no compone con `CookieCsrfTokenRepository` + carga diferida (hallazgo #5) dentro de la misma suite `mvn test`.** Se investigó exhaustivamente en la Fase 10 (QA) al intentar escribir una prueba de integración que verificara el flujo real de doble envío CSRF (cookie `XSRF-TOKEN` + header `X-XSRF-TOKEN` coincidentes). Una vez que **cualquier** prueba en el mismo proceso Maven usa `.with(csrf())` para simular un token válido (patrón usado en toda la suite para no depender del mecanismo real), las peticiones **no relacionadas** y posteriores —incluso en otras clases, por el `ApplicationContext` de Spring cacheado entre clases de prueba con la misma configuración— dejan de recibir la cookie `XSRF-TOKEN` en la respuesta de `GET /api/health`, aunque la petición entrante no lleve ninguna cookie. Se descartó mediante pruebas aisladas que fuera un problema de la aplicación real: verificado manualmente con `curl` contra el backend en ejecución (`localhost:8080`) que el flujo real funciona correctamente en cada petición, de forma repetible. **Conclusión:** es una interacción conocida entre el postprocessor de pruebas (pensado originalmente para repositorios basados en sesión) y un `CsrfTokenRepository` basado en cookie con carga diferida — no una regresión de la aplicación. **Solución aplicada:** `SecurityIntegrationTest` no intenta reproducir el flujo positivo de doble envío vía MockMvc; en su lugar prueba la propiedad de seguridad esencial (petición sin token → 403) de forma robusta, y el flujo real de doble envío queda documentado como verificado manualmente por `curl` (ver `05-business-rules.md`/`00-product-vision.md`, Fase 10).
+
+## Decisión
+
+Adoptar explícitamente las versiones y artefactos verificados en esta iteración (ver `backend/pom.xml` y `frontend/package.json`) en vez de las versiones "más recientes" sin fijar, ya que el ecosistema Spring Boot 4 / Flyway 12 / Vite 8 está en plena reestructuración de módulos y las combinaciones no probadas fallan de forma no obvia.
+
+## Consecuencias
+
+- Cualquier dependencia nueva de Spring Boot debe verificarse contra el patrón de modularización (starter dedicado + paquete posiblemente movido) antes de asumir que funciona igual que en Boot 3.x.
+- Si en el futuro se actualiza Node a ≥22.12.0 de forma confiable en todos los entornos de desarrollo, se puede reevaluar mover el frontend a Vite 7/8.
+- Este ADR debe revisarse si se actualiza cualquiera de estas dependencias mayores.

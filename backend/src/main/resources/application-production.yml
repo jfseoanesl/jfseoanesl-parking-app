@@ -1,0 +1,28 @@
+# Perfil de produccion: MySQL (decisions/ADR-002-persistencia-sqlite.md). Sin datos semilla
+# (prompt.md §33: nunca usar credenciales de desarrollo en produccion). Todas las variables
+# sensibles se inyectan por entorno/.env - ver .env.example y specs/06-architecture.md.
+spring:
+  datasource:
+    # allowPublicKeyRetrieval: MySQL 8 autentica con caching_sha2_password; SIN SSL el driver necesita
+    # pedir la clave publica del servidor o la conexion falla ("Public Key Retrieval is not allowed").
+    # Seguro por defecto (false); activarlo solo en red privada (ej. red interna de Docker). Con SSL
+    # (DB_USE_SSL=true) no hace falta. Ver specs/decisions/ADR-006-migracion-mysql.md.
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:parking}?useSSL=${DB_USE_SSL:true}&allowPublicKeyRetrieval=${DB_ALLOW_PUBLIC_KEY_RETRIEVAL:false}&serverTimezone=UTC
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    database-platform: org.hibernate.dialect.MySQLDialect
+  flyway:
+    # {vendor} = motor detectado (mysql): migraciones propias del motor, ver db/vendor/mysql.
+    locations: classpath:db/migration,classpath:db/vendor/{vendor}
+
+logging:
+  level:
+    root: WARN
+    com.parking: INFO
+
+parking:
+  timezone: ${PARKING_TIMEZONE:America/Bogota}
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS}

@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>4.1.1</version>
+    <relativePath/>
+  </parent>
+
+  <groupId>com.parking</groupId>
+  <artifactId>parking-backend</artifactId>
+  <version>0.1.0</version>
+  <name>parking-backend</name>
+  <description>API backend de la PWA de gestion de parqueadero</description>
+
+  <properties>
+    <java.version>21</java.version>
+    <sqlite-jdbc.version>3.46.1.3</sqlite-jdbc.version>
+    <!-- El soporte de SQLite en Flyway (modulo flyway-database-nc-sqlite) solo existe desde
+         Flyway 12.3.0 en adelante, lo que requiere Spring Boot 4.x (gestiona Flyway 12.4.0) en
+         lugar de la serie 3.x (gestiona Flyway <= 11.x, sin SQLite). Ver decisions/ADR-002. -->
+    <hibernate-community-dialects.version>${hibernate.version}</hibernate-community-dialects.version>
+    <!-- Seguridad (revision OWASP A06, 2026-09-29): parches sobre las versiones que gestiona Spring
+         Boot 4.1.1. Tomcat 11.0.24 -> 11.0.25 (CVE-2026-65905, CVE-2026-65182, CVE-2026-68525);
+         Jackson 3.1.5 -> 3.1.6 (CVE-2026-68497, CVE-2026-83557, CVE-2026-19032). Retirar estas
+         lineas cuando una version de Spring Boot ya las incluya. -->
+    <tomcat.version>11.0.25</tomcat.version>
+    <jackson-bom.version>3.1.6</jackson-bom.version>
+    <!-- Exportacion de reportes (RF-063): Excel y PDF generados en el servidor. -->
+    <poi.version>5.5.1</poi.version>
+    <openpdf.version>2.2.2</openpdf.version>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-data-jpa</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-security</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-validation</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-actuator</artifactId>
+    </dependency>
+
+    <!-- Persistencia: SQLite (desarrollo/test) y MySQL (produccion futura) -->
+    <dependency>
+      <groupId>org.xerial</groupId>
+      <artifactId>sqlite-jdbc</artifactId>
+      <version>${sqlite-jdbc.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.hibernate.orm</groupId>
+      <artifactId>hibernate-community-dialects</artifactId>
+      <version>${hibernate-community-dialects.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.mysql</groupId>
+      <artifactId>mysql-connector-j</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+
+    <!-- Exportacion de reportes (RF-063, ADR-008): Excel (Apache POI) y PDF (OpenPDF, LGPL/MPL). -->
+    <dependency>
+      <groupId>org.apache.poi</groupId>
+      <artifactId>poi-ooxml</artifactId>
+      <version>${poi.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.github.librepdf</groupId>
+      <artifactId>openpdf</artifactId>
+      <version>${openpdf.version}</version>
+    </dependency>
+
+    <!-- Migraciones. Spring Boot 4 movio la autoconfiguracion de Flyway a su propio starter
+         (antes bastaba con flyway-core en el classpath, ver decisions/ADR-002). -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-flyway</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.flywaydb</groupId>
+      <artifactId>flyway-core</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.flywaydb</groupId>
+      <artifactId>flyway-database-nc-sqlite</artifactId>
+      <!-- No gestionado por spring-boot-dependencies; se fija explicitamente igual a ${flyway.version} -->
+      <version>${flyway.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.flywaydb</groupId>
+      <artifactId>flyway-mysql</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+      <optional>true</optional>
+    </dependency>
+
+    <!-- spring-boot-starter-test-classic (no solo -test): Spring Boot 4 modularizo el soporte
+         de pruebas por tecnologia (webmvc-test, security-test, etc.); el paquete "classic"
+         agrupa todo lo que antes traia -starter-test por defecto (incluye AutoConfigureMockMvc). -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test-classic</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.security</groupId>
+      <artifactId>spring-security-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-maven-plugin</artifactId>
+        <configuration>
+          <excludes>
+            <exclude>
+              <groupId>org.projectlombok</groupId>
+              <artifactId>lombok</artifactId>
+            </exclude>
+          </excludes>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>

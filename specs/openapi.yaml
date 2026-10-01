@@ -1,0 +1,1280 @@
+openapi: 3.0.3
+info:
+  title: Parking API
+  description: >
+    Contrato de API para la PWA de gestión de parqueadero (MVP).
+    Cubre los endpoints prioritarios del flujo INGRESO → BÚSQUEDA → SALIDA → COBRO,
+    tarifas, caja, autenticación, reportes (con exportación a Excel/PDF), dashboard, usuarios,
+    configuración y catálogos, auditoría y comprobantes: todos los endpoints implementados en el
+    backend. Resumen tabular en specs/08-api-contract.md.
+  version: 0.1.0
+servers:
+  - url: /api
+    description: Backend Spring Boot
+
+security:
+  - sessionCookie: []
+
+paths:
+  /auth/login:
+    post:
+      summary: Iniciar sesión
+      description: >
+        Al autenticar se cambia el ID de la sesión existente (protección contra session fixation).
+        Cada intento fallido queda en el log del servidor, nunca la contraseña.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username: { type: string }
+                password: { type: string, format: password }
+      responses:
+        '200':
+          description: Sesión iniciada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserSummary' }
+        '401':
+          description: Credenciales inválidas (mismo mensaje exista o no el usuario, RF-002)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '429':
+          description: >
+            Demasiados intentos fallidos para ese usuario (TOO_MANY_ATTEMPTS): tras 5 fallos en
+            15 minutos queda bloqueado 15 minutos, aun con la contraseña correcta (revisión OWASP A07).
+          headers:
+            Retry-After:
+              description: Segundos que faltan para poder reintentar.
+              schema: { type: integer }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+
+  /auth/logout:
+    post:
+      summary: Cerrar sesión
+      responses:
+        '204': { description: Sesión cerrada }
+
+  /auth/me:
+    get:
+      summary: Usuario autenticado actual
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserSummary' }
+        '401': { description: No autenticado }
+
+  /parking-sessions/active:
+    get:
+      summary: Listar vehículos actualmente estacionados
+      parameters:
+        - in: query
+          name: plate
+          schema: { type: string }
+          description: Filtro parcial por placa
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ParkingSessionSummary' }
+
+  /parking-sessions:
+    get:
+      summary: Historial de sesiones (Administrador, RF-058)
+      description: >
+        Sesiones cuya fecha de ingreso (zona del parqueadero) cae en [from, to], más recientes primero,
+        filtrables por placa (contiene, sin distinguir mayúsculas), estado y empleado (el que registró
+        el ingreso o el cobro). Máximo 500 resultados: si hay más, `truncated` es true.
+      parameters:
+        - { in: query, name: from, required: true, schema: { type: string, format: date } }
+        - { in: query, name: to, required: true, schema: { type: string, format: date } }
+        - { in: query, name: plate, schema: { type: string } }
+        - { in: query, name: status, schema: { type: string, enum: [EN_PARQUEADERO, FINALIZADO, ANULADO] } }
+        - { in: query, name: employeeId, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HistoryPage' }
+        '400':
+          description: Fechas faltantes o inválidas, from posterior a to, o estado inválido
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AdminOnly' }
+    post:
+      summary: Registrar ingreso de vehículo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ParkingEntryRequest' }
+      responses:
+        '201':
+          description: Ingreso registrado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ParkingSessionSummary' }
+        '409':
+          description: Ya existe un parqueo activo para esa placa (BR-001)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+
+  /parking-sessions/{id}:
+    get:
+      summary: Detalle de una sesión de parqueo
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ParkingSessionDetail' }
+        '404': { description: No encontrada }
+
+  /parking-sessions/{id}/quote:
+    post:
+      summary: Calcular (sin registrar) el valor a cobrar en este momento
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TariffQuote' }
+        '404': { description: No encontrada }
+        '409': { description: La sesión ya no está activa }
+
+  /parking-sessions/{id}/checkout:
+    post:
+      summary: Registrar salida y cobro (operación atómica)
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CheckoutRequest' }
+      responses:
+        '200':
+          description: Salida y cobro registrados
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CheckoutResult' }
+        '404': { description: No encontrada }
+        '409':
+          description: La sesión ya fue finalizada o anulada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+
+  /parking-sessions/{id}/cancel:
+    post:
+      summary: Anular sesión de parqueo (Administrador)
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string }
+      responses:
+        '200':
+          description: Sesión anulada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ParkingSessionDetail' }
+        '403': { description: Requiere rol Administrador }
+
+  /tariffs:
+    get:
+      summary: Listar tarifas
+      parameters:
+        - in: query
+          name: vehicleTypeId
+          schema: { type: string, format: uuid }
+        - in: query
+          name: active
+          schema: { type: boolean }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Tariff' }
+    post:
+      summary: Crear tarifa (Administrador)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TariffInput' }
+      responses:
+        '201':
+          description: Creada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Tariff' }
+
+  /tariffs/{id}:
+    get:
+      summary: Detalle de tarifa
+      parameters:
+        - $ref: '#/components/parameters/TariffId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Tariff' }
+    put:
+      summary: Editar tarifa (Administrador)
+      parameters:
+        - $ref: '#/components/parameters/TariffId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TariffInput' }
+      responses:
+        '200':
+          description: Actualizada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Tariff' }
+
+  /tariffs/{id}/status:
+    patch:
+      summary: Activar/desactivar tarifa
+      parameters:
+        - $ref: '#/components/parameters/TariffId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [active]
+              properties:
+                active: { type: boolean }
+      responses:
+        '200': { description: Actualizada }
+
+  /cash-sessions/current:
+    get:
+      summary: Caja abierta del usuario autenticado
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CashSession' }
+        '404': { description: No tiene caja abierta }
+
+  /cash-sessions:
+    get:
+      summary: Cajas cerradas en un rango de fechas de cierre (Administrador, RF-057)
+      description: Base para corregir un cierre con POST /cash-sessions/{id}/adjustments. Más recientes primero.
+      parameters:
+        - { in: query, name: from, required: true, schema: { type: string, format: date } }
+        - { in: query, name: to, required: true, schema: { type: string, format: date } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ClosedCashSession' }
+        '400':
+          description: Fechas faltantes, inválidas o from posterior a to
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AdminOnly' }
+
+  /cash-sessions/{id}/payments:
+    get:
+      summary: Cobros registrados en una caja (RF-059)
+      description: Operaciones del turno, más recientes primero. Solo el dueño de la caja o un administrador.
+      parameters:
+        - $ref: '#/components/parameters/CashSessionId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/CashOperation' }
+        '403':
+          description: La caja es de otro empleado y quien consulta no es administrador
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /cash-sessions/open:
+    post:
+      summary: Abrir caja
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [initialBalance]
+              properties:
+                initialBalance: { type: number, format: decimal }
+      responses:
+        '201':
+          description: Caja abierta
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CashSession' }
+        '409': { description: Ya existe una caja abierta para el usuario (BR-022) }
+
+  /cash-sessions/{id}/summary:
+    get:
+      summary: Totales en vivo de la caja (previsualización de cierre)
+      description: Solo el empleado dueño de la caja o un administrador (revisión OWASP A01).
+      parameters:
+        - $ref: '#/components/parameters/CashSessionId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CashSessionSummary' }
+        '403':
+          description: La caja es de otro empleado y quien consulta no es administrador
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /cash-sessions/{id}/close:
+    post:
+      summary: Cerrar caja
+      parameters:
+        - $ref: '#/components/parameters/CashSessionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reportedCash]
+              properties:
+                reportedCash: { type: number, format: decimal }
+      responses:
+        '200':
+          description: Caja cerrada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CashSession' }
+
+  /cash-sessions/{id}/adjustments:
+    post:
+      summary: Corrección administrativa de un cierre de caja (Administrador)
+      description: >
+        Modifica el efectivo reportado (y por tanto la diferencia) de una caja YA cerrada; los totales
+        calculados no cambian (BR-023, BR-023.1, RF-057). Motivo obligatorio; queda en auditoría como
+        CASH_SESSION_ADJUSTED con el valor anterior y el nuevo.
+      parameters:
+        - $ref: '#/components/parameters/CashSessionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CashSessionAdjustmentRequest' }
+      responses:
+        '200':
+          description: Caja corregida
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CashSession' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AdminOnly' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: La caja todavía está abierta (CASH_SESSION_NOT_CLOSED)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+
+  /payments/{id}/receipt:
+    get:
+      summary: Comprobante de pago (RF-048, BR-017)
+      description: Datos para el comprobante imprimible de un pago. El id es el paymentId de CheckoutResult.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Receipt' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # --- Usuarios (UC-009, RF-005 a RF-009) ---
+
+  /users:
+    get:
+      summary: Listar usuarios (Administrador)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/User' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AdminOnly' }
+    post:
+      summary: Crear usuario (Administrador)
+      description: La contraseña se guarda con hash BCrypt (BR-004); queda en auditoría como USER_CREATED.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateUserRequest' }
+      responses:
+        '201':
+          description: Usuario creado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AdminOnly' }
+        '409':
+          description: Ya existe un usuario con ese nombre (USERNAME_TAKEN)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+
+  /users/{id}/status:
+    patch:
+      summary: Activar o desactivar un usuario (Administrador)
+      description: Un usuario inactivo no puede iniciar sesión. Auditado como USER_ACTIVATED / USER_DEACTIVATED.
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ActiveStatusRequest' }
+      responses:
+        '200':
+          description: Estado actualizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AdminOnly' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /users/{id}/password:
+    put:
+      summary: Cambiar la contraseña de otro usuario (Administrador)
+      description: Auditado como USER_PASSWORD_CHANGED, nunca con el valor de la contraseña (RNF-013).
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ChangePasswordRequest' }
+      responses:
+        '200': { description: Contraseña cambiada (sin cuerpo) }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AdminOnly' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /users/me/password:
+    put:
+      summary: Cambiar la propia contraseña (Administrador o Empleado)
+      description: Exige la contraseña actual (revisión OWASP A07).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ChangeOwnPasswordRequest' }
+      responses:
+        '200': { description: Contraseña cambiada (sin cuerpo) }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '409':
+          description: La contraseña actual no es correcta (INVALID_CURRENT_PASSWORD)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+
+  # --- Configuración y catálogos (UC-013, RF-010 a RF-015, BR-018) ---
+
+  /configuration:
+    get:
+      summary: Configuración del parqueadero (Administrador o Empleado)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Configuration' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      summary: Actualizar la configuración (Administrador)
+      description: >
+        Auditado como CONFIGURATION_UPDATED con todos los campos en el valor anterior y en el nuevo
+        (BR-025).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ConfigurationUpdateRequest' }
+      responses:
+        '200':
+          description: Configuración actualizada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Configuration' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AdminOnly' }
+
+  /vehicle-types:
+    get:
+      summary: Tipos de vehículo activos (Administrador o Empleado)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/VehicleType' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+    post:
+      summary: Crear tipo de vehículo (Administrador)
+      description: El código se normaliza a mayúsculas y sin espacios alrededor.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateVehicleTypeRequest' }
+      responses:
+        '201':
+          description: Tipo creado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VehicleType' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AdminOnly' }
+        '409':
+          description: Ya existe un tipo con ese código (VEHICLE_TYPE_CODE_TAKEN)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+
+  /payment-methods:
+    get:
+      summary: Medios de pago activos (Administrador o Empleado)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/PaymentMethod' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+    post:
+      summary: Crear medio de pago (Administrador)
+      description: >
+        El código se normaliza a mayúsculas. La categoría decide cómo cuenta en el arqueo de caja:
+        solo CASH es efectivo físico (BR-023.1).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreatePaymentMethodRequest' }
+      responses:
+        '201':
+          description: Medio de pago creado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PaymentMethod' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AdminOnly' }
+        '409':
+          description: Ya existe un medio de pago con ese código (PAYMENT_METHOD_CODE_TAKEN)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+
+  # --- Auditoría (UC-012, RF-067, BR-025) ---
+
+  /audit-logs:
+    get:
+      summary: Consultar la auditoría (Administrador)
+      description: >
+        Registros más recientes primero; filtrables por entidad, id de la entidad, usuario que ejecutó
+        la acción y rango de fechas (inclusivo, zona del parqueadero) — RF-067.
+      parameters:
+        - { name: userId, in: query, required: false, schema: { type: string, format: uuid } }
+        - { name: from, in: query, required: false, schema: { type: string, format: date } }
+        - { name: to, in: query, required: false, schema: { type: string, format: date } }
+        - name: entity
+          in: query
+          required: false
+          schema: { type: string, enum: [Tariff, User, CashSession, ParkingSession, Configuration] }
+        - name: entityId
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/AuditLogEntry' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AdminOnly' }
+
+  # --- Reportes y Dashboard (Fase 8, RF-060 a RF-065; exportación RF-063 / ADR-008) ---
+  # Todos requieren rol ADMIN: sin sesión -> 401, sesión de EMPLOYEE -> 403.
+
+  /reports/daily:
+    get:
+      summary: Reporte diario
+      description: Mismo cálculo que /reports/summary con from = to = date (RF-060).
+      parameters:
+        - name: date
+          in: query
+          required: true
+          description: Día a reportar, en la zona horaria del parqueadero (BR-026).
+          schema: { type: string, format: date, example: '2026-09-29' }
+      responses:
+        '200':
+          description: Indicadores del día
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Report' }
+        '400': { $ref: '#/components/responses/InvalidReportParameters' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AdminOnly' }
+
+  /reports/summary:
+    get:
+      summary: Reporte por rango (semanal, mensual o personalizado)
+      description: >
+        Un solo endpoint parametrizado por rango para los reportes semanal, mensual y personalizado
+        (RF-061, RF-062). Ambas fechas son inclusivas.
+      parameters:
+        - $ref: '#/components/parameters/ReportFrom'
+        - $ref: '#/components/parameters/ReportTo'
+      responses:
+        '200':
+          description: Indicadores del período
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Report' }
+        '400': { $ref: '#/components/responses/InvalidReportParameters' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AdminOnly' }
+
+  /reports/summary/export:
+    get:
+      summary: Exportar el reporte del período a Excel, PDF o CSV
+      description: >
+        Genera en el servidor el mismo reporte que /reports/summary (mismas cifras, etiquetas y orden),
+        con encabezado: nombre y NIT del parqueadero, período, usuario que lo generó y fecha/hora
+        (RF-063, decisions/ADR-008-exportacion-reportes.md). En Excel, montos y conteos son números con
+        formato (no texto). En CSV: separador `;`, UTF-8 con BOM, decimales con coma y protección
+        contra inyección de fórmulas (celdas que empiezan con = + - @ se prefijan con apóstrofo).
+      parameters:
+        - $ref: '#/components/parameters/ReportFrom'
+        - $ref: '#/components/parameters/ReportTo'
+        - name: format
+          in: query
+          required: true
+          description: Formato del archivo (sin distinguir mayúsculas).
+          schema: { type: string, enum: [xlsx, pdf, csv] }
+      responses:
+        '200':
+          description: Archivo del reporte
+          headers:
+            Content-Disposition:
+              description: >
+                Descarga con nombre descriptivo: reporte-parqueadero_<from>_<to>.<ext>, o
+                reporte-parqueadero_<fecha>.<ext> si el período es de un día.
+              schema:
+                type: string
+                example: "attachment; filename=\"reporte-parqueadero_2026-09-23_2026-09-29.xlsx\"; filename*=UTF-8''reporte-parqueadero_2026-09-23_2026-09-29.xlsx"
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema: { type: string, format: binary }
+            application/pdf:
+              schema: { type: string, format: binary }
+            text/csv:
+              schema: { type: string, format: binary }
+        '400':
+          description: >
+            Formato distinto de xlsx/pdf/csv ("Formato no soportado: use xlsx, pdf o csv"), from posterior a to,
+            o fechas faltantes o inválidas.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AdminOnly' }
+
+  /dashboard:
+    get:
+      summary: Dashboard del administrador (actividad de hoy)
+      description: >
+        Ocupación actual, ingresos/salidas/recaudo del día, cajas abiertas y últimos movimientos
+        (RF-064, RF-065). La pantalla lo refresca cada 30 s.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Dashboard' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AdminOnly' }
+
+  /health:
+    get:
+      summary: Health check
+      security: []
+      responses:
+        '200': { description: OK }
+
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: JSESSIONID
+      description: >
+        Cookie de sesión HttpOnly y SameSite=Lax (Secure con SESSION_COOKIE_SECURE=true bajo HTTPS),
+        emitida al iniciar sesión (decisions/ADR-004-autenticacion.md). Si el usuario es desactivado,
+        su sesión se revoca en la siguiente petición (401).
+        Las mutaciones (POST/PUT/PATCH) además exigen el header X-XSRF-TOKEN con el valor de la
+        cookie XSRF-TOKEN (doble envío CSRF); los GET, como los de reportes, no.
+
+  parameters:
+    SessionId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    TariffId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    CashSessionId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    UserId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    ReportFrom:
+      name: from
+      in: query
+      required: true
+      description: Fecha inicial, inclusiva (zona horaria del parqueadero, BR-026).
+      schema: { type: string, format: date, example: '2026-09-23' }
+    ReportTo:
+      name: to
+      in: query
+      required: true
+      description: Fecha final, inclusiva.
+      schema: { type: string, format: date, example: '2026-09-29' }
+
+  responses:
+    ValidationError:
+      description: Datos de entrada inválidos (VALIDATION_ERROR, MALFORMED_REQUEST o BAD_REQUEST)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    NotFound:
+      description: El recurso no existe (NOT_FOUND)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    Unauthenticated:
+      description: Sin sesión iniciada
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    AdminOnly:
+      description: La sesión no tiene rol ADMIN
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    InvalidReportParameters:
+      description: >
+        Parámetro obligatorio faltante (MISSING_PARAMETER) o fecha con formato inválido
+        (INVALID_PARAMETER).
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+
+  schemas:
+    ApiError:
+      type: object
+      properties:
+        error: { type: string }
+        message: { type: string }
+        timestamp: { type: string, format: date-time }
+
+    UserSummary:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        username: { type: string }
+        fullName: { type: string }
+        role: { type: string, enum: [ADMIN, EMPLOYEE] }
+
+    ParkingEntryRequest:
+      type: object
+      required: [plate, vehicleTypeId]
+      properties:
+        plate: { type: string, example: ABC123 }
+        vehicleTypeId: { type: string, format: uuid }
+        notes: { type: string }
+
+    ParkingSessionSummary:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        plate: { type: string }
+        vehicleType: { type: string, enum: [CAR, MOTORCYCLE] }
+        entryDateTime: { type: string, format: date-time }
+        elapsedMinutes: { type: integer }
+        entryEmployee: { type: string }
+        status: { type: string, enum: [EN_PARQUEADERO, FINALIZADO, ANULADO] }
+
+    ParkingSessionDetail:
+      allOf:
+        - $ref: '#/components/schemas/ParkingSessionSummary'
+        - type: object
+          properties:
+            exitDateTime: { type: string, format: date-time, nullable: true }
+            appliedTariffId: { type: string, format: uuid, nullable: true }
+            calculatedAmount: { type: number, nullable: true }
+            notes: { type: string, nullable: true }
+            cancelReason: { type: string, nullable: true }
+
+    TariffQuote:
+      type: object
+      description: Campos de primer nivel = tarifa sugerida (BR-008); options = todas las aplicables (BR-008.1).
+      properties:
+        tariffId: { type: string, format: uuid }
+        tariffName: { type: string }
+        modality: { type: string, enum: [FULL_AM, FULL_PM, FULL_DAY, BY_TIME] }
+        elapsedMinutes: { type: integer }
+        calculatedAmount: { type: number }
+        options:
+          type: array
+          items: { $ref: '#/components/schemas/TariffOption' }
+
+    TariffOption:
+      type: object
+      properties:
+        tariffId: { type: string, format: uuid }
+        tariffName: { type: string }
+        modality: { type: string, enum: [FULL_AM, FULL_PM, FULL_DAY, BY_TIME] }
+        calculatedAmount: { type: number }
+        suggested: { type: boolean, description: true solo para la sugerida por el motor }
+
+    CheckoutRequest:
+      type: object
+      required: [paymentMethodId, chargedAmount]
+      properties:
+        paymentMethodId: { type: string, format: uuid }
+        chargedAmount:
+          type: number
+          description: Debe ser exactamente el valor calculado por el motor al confirmar; si no, 409 CHARGED_AMOUNT_MISMATCH.
+        tariffId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Tarifa alterna elegida entre las aplicables (BR-008.1); omitida = la sugerida.
+
+    CheckoutResult:
+      type: object
+      properties:
+        sessionId: { type: string, format: uuid }
+        plate: { type: string }
+        entryDateTime: { type: string, format: date-time }
+        exitDateTime: { type: string, format: date-time }
+        appliedTariff:
+          type: object
+          properties:
+            id: { type: string, format: uuid }
+            name: { type: string }
+            modality: { type: string }
+        calculatedAmount: { type: number }
+        chargedAmount: { type: number }
+        paymentMethod: { type: string }
+        operationNumber: { type: string }
+        status: { type: string, enum: [FINALIZADO] }
+
+    TariffInput:
+      type: object
+      required: [name, vehicleTypeId, modality, value, priority]
+      properties:
+        name: { type: string }
+        description: { type: string }
+        vehicleTypeId: { type: string, format: uuid }
+        modality: { type: string, enum: [FULL_AM, FULL_PM, FULL_DAY, BY_TIME] }
+        value: { type: number }
+        startTime: { type: string, example: "06:00:00", nullable: true }
+        endTime: { type: string, example: "18:00:00", nullable: true }
+        toleranceMinutes: { type: integer, default: 10 }
+        minTimeMinutes: { type: integer, nullable: true }
+        timeUnit: { type: string, enum: [MINUTES, HOURS], nullable: true }
+        fractionMinutes: { type: integer, nullable: true }
+        rounding: { type: string, enum: [UP, DOWN, NEAREST], default: UP }
+        priority: { type: integer }
+        active: { type: boolean, default: true }
+        validFrom: { type: string, format: date }
+        validTo: { type: string, format: date, nullable: true }
+
+    Tariff:
+      allOf:
+        - $ref: '#/components/schemas/TariffInput'
+        - type: object
+          properties:
+            id: { type: string, format: uuid }
+            createdAt: { type: string, format: date-time }
+            updatedAt: { type: string, format: date-time }
+
+    CashSession:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        employeeId: { type: string, format: uuid }
+        status: { type: string, enum: [OPEN, CLOSED] }
+        openedAt: { type: string, format: date-time }
+        initialBalance: { type: number }
+        closedAt: { type: string, format: date-time, nullable: true }
+        cashCollected: { type: number, nullable: true }
+        electronicCollected: { type: number, nullable: true }
+        otherCollected: { type: number, nullable: true }
+        totalCollected: { type: number, nullable: true }
+        vehiclesServed: { type: integer, nullable: true }
+        expectedCash: { type: number, nullable: true }
+        reportedCash: { type: number, nullable: true }
+        difference: { type: number, nullable: true }
+
+    CashSessionSummary:
+      type: object
+      properties:
+        initialBalance: { type: number }
+        cashCollected: { type: number }
+        electronicCollected: { type: number }
+        otherCollected: { type: number }
+        totalCollected: { type: number }
+        vehiclesServed: { type: integer }
+        expectedCash: { type: number }
+
+    Report:
+      type: object
+      description: Indicadores mínimos de un período (prompt.md §13, RF-060 a RF-062).
+      properties:
+        from: { type: string, format: date }
+        to: { type: string, format: date }
+        vehiclesEntered: { type: integer, format: int64, description: Sesiones cuyo ingreso cae en el período. }
+        vehiclesFinalized: { type: integer, format: int64, description: Sesiones cobradas en el período. }
+        enteredByVehicleType:
+          type: object
+          description: Ingresos por nombre de tipo de vehículo.
+          additionalProperties: { type: integer, format: int64 }
+          example: { "Automóvil": 15, "Motocicleta": 3 }
+        totalCollected: { type: number, description: Suma de los valores cobrados en el período. }
+        collectedByPaymentMethod:
+          type: object
+          description: Recaudo por nombre de medio de pago.
+          additionalProperties: { type: number }
+          example: { "Efectivo": 71000 }
+        collectedByTariff:
+          type: object
+          description: Recaudo por nombre de la tarifa aplicada (incluye tarifas alternas elegidas al cobrar, BR-008.1).
+          additionalProperties: { type: number }
+          example: { "ratoam": 33000, "dia": 38000 }
+        averageDurationMinutes: { type: number, format: double, nullable: true, description: Permanencia promedio en minutos de las sesiones finalizadas; null si no hay. }
+        peakHour: { type: integer, minimum: 0, maximum: 23, nullable: true, description: Hora (0-23) con más movimientos; null si no hay. }
+        collectedByEmployee:
+          type: object
+          description: Recaudo por nombre del empleado que cobró.
+          additionalProperties: { type: number }
+        cancelledSessions: { type: integer, format: int64, description: Sesiones anuladas en el período (UC-011). }
+        cashDifferencesSum: { type: number, description: Suma de diferencias de arqueo de las cajas cerradas en el período (negativo = faltante). }
+
+    Dashboard:
+      type: object
+      properties:
+        occupied: { type: integer, format: int64, description: Vehículos actualmente en el parqueadero. }
+        maxCapacity: { type: integer, nullable: true, description: Capacidad configurada; null si no se configuró (BR-016). }
+        entriesToday: { type: integer, format: int64 }
+        exitsToday: { type: integer, format: int64 }
+        collectedToday: { type: number }
+        openCashSessions: { type: integer, format: int64 }
+        recentMovements:
+          type: array
+          items: { $ref: '#/components/schemas/RecentMovement' }
+
+    RecentMovement:
+      type: object
+      properties:
+        plate: { type: string }
+        status: { type: string, enum: [EN_PARQUEADERO, FINALIZADO, ANULADO] }
+        description: { type: string, description: 'Texto para mostrar, ej. "Ingresó", "Salió".' }
+
+    User:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        username: { type: string }
+        fullName: { type: string }
+        role: { type: string, enum: [ADMIN, EMPLOYEE] }
+        active: { type: boolean }
+
+    CreateUserRequest:
+      type: object
+      required: [username, fullName, password, role]
+      properties:
+        username: { type: string }
+        fullName: { type: string }
+        password: { type: string, format: password, minLength: 8 }
+        role: { type: string, enum: [ADMIN, EMPLOYEE] }
+
+    ChangePasswordRequest:
+      type: object
+      required: [newPassword]
+      properties:
+        newPassword: { type: string, format: password, minLength: 8 }
+
+    ActiveStatusRequest:
+      type: object
+      required: [active]
+      properties:
+        active: { type: boolean }
+
+    Configuration:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        parkingName: { type: string }
+        nit: { type: string, nullable: true }
+        address: { type: string, nullable: true }
+        phone: { type: string, nullable: true }
+        maxCapacity: { type: integer, nullable: true, description: Cupos totales; null = sin límite configurado (BR-016). }
+        timezone: { type: string, example: America/Bogota }
+        currency: { type: string, example: COP }
+        receiptFormatJson: { type: string, nullable: true }
+
+    ConfigurationUpdateRequest:
+      type: object
+      required: [parkingName]
+      properties:
+        parkingName: { type: string }
+        nit: { type: string, nullable: true }
+        address: { type: string, nullable: true }
+        phone: { type: string, nullable: true }
+        maxCapacity: { type: integer, minimum: 0, nullable: true }
+        timezone: { type: string, nullable: true }
+        currency: { type: string, nullable: true }
+        receiptFormatJson:
+          type: string
+          nullable: true
+          maxLength: 2000
+          description: >
+            RF-015. Objeto JSON (400 si no lo es o supera 2000 caracteres) con los campos visibles del
+            comprobante: showNit, showAddress, showPhone, showEmployee, showTariff, showDuration
+            (booleanos, por defecto true) y footer (texto). Enviarlo siempre en el PUT: un valor
+            ausente se guarda como null.
+          example: '{"showNit":true,"showAddress":true,"showPhone":false,"showEmployee":true,"showTariff":true,"showDuration":true,"footer":"Gracias por su visita"}'
+
+    VehicleType:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        code: { type: string, example: CAR }
+        name: { type: string, example: Automóvil }
+
+    CreateVehicleTypeRequest:
+      type: object
+      required: [code, name]
+      properties:
+        code: { type: string }
+        name: { type: string }
+
+    PaymentMethod:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        code: { type: string, example: CASH }
+        name: { type: string, example: Efectivo }
+
+    CreatePaymentMethodRequest:
+      type: object
+      required: [code, name, category]
+      properties:
+        code: { type: string }
+        name: { type: string }
+        category: { type: string, enum: [CASH, ELECTRONIC, OTHER] }
+
+    CashSessionAdjustmentRequest:
+      type: object
+      required: [reportedCash, reason]
+      properties:
+        reportedCash: { type: number, minimum: 0 }
+        reason: { type: string }
+
+    Receipt:
+      type: object
+      properties:
+        parkingName: { type: string }
+        nit: { type: string, nullable: true }
+        address: { type: string, nullable: true }
+        phone: { type: string, nullable: true }
+        plate: { type: string }
+        vehicleTypeName: { type: string }
+        entryDateTime: { type: string, format: date-time }
+        exitDateTime: { type: string, format: date-time }
+        elapsedMinutes: { type: integer, format: int64 }
+        tariffName: { type: string }
+        chargedAmount: { type: number }
+        paymentMethodName: { type: string }
+        operationNumber: { type: string, example: OP-000001 }
+        employeeName: { type: string }
+
+    AuditLogEntry:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        userId: { type: string, format: uuid }
+        userFullName: { type: string }
+        action:
+          type: string
+          description: >
+            TARIFF_CREATED, TARIFF_UPDATED, TARIFF_ACTIVATED, TARIFF_DEACTIVATED, TARIFF_OVERRIDDEN,
+            USER_CREATED, USER_ACTIVATED, USER_DEACTIVATED, USER_PASSWORD_CHANGED,
+            CASH_SESSION_CLOSED, CASH_SESSION_ADJUSTED, PARKING_SESSION_CANCELLED, CONFIGURATION_UPDATED.
+        entityName: { type: string, example: Tariff }
+        entityId: { type: string }
+        oldValue: { type: string, nullable: true, description: JSON con el estado anterior (si aplica). }
+        newValue: { type: string, nullable: true, description: JSON con el estado nuevo (si aplica). }
+        occurredAt: { type: string, format: date-time }
+
+    HistoryItem:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        plate: { type: string }
+        vehicleTypeCode: { type: string, nullable: true }
+        vehicleTypeName: { type: string, nullable: true }
+        status: { type: string, enum: [EN_PARQUEADERO, FINALIZADO, ANULADO] }
+        entryDateTime: { type: string, format: date-time }
+        exitDateTime: { type: string, format: date-time, nullable: true }
+        elapsedMinutes: { type: integer, format: int64 }
+        entryEmployeeName: { type: string, nullable: true }
+        exitEmployeeName: { type: string, nullable: true }
+        appliedTariffName: { type: string, nullable: true }
+        chargedAmount: { type: number, nullable: true }
+        operationNumber: { type: string, nullable: true }
+        paymentId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Para abrir el comprobante (GET /payments/{id}/receipt)
+        notes: { type: string, nullable: true }
+        cancelReason: { type: string, nullable: true }
+
+    HistoryPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/HistoryItem' }
+        truncated: { type: boolean, description: true si había más de 500 resultados }
+
+    CashOperation:
+      type: object
+      properties:
+        paymentId: { type: string, format: uuid }
+        operationNumber: { type: string, example: OP-000001 }
+        plate: { type: string, nullable: true }
+        paidAt: { type: string, format: date-time }
+        chargedAmount: { type: number }
+        paymentMethodName: { type: string, nullable: true }
+        tariffName: { type: string, nullable: true }
+
+    ClosedCashSession:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        employeeId: { type: string, format: uuid }
+        employeeName: { type: string, nullable: true }
+        openedAt: { type: string, format: date-time }
+        closedAt: { type: string, format: date-time }
+        initialBalance: { type: number }
+        totalCollected: { type: number, nullable: true }
+        vehiclesServed: { type: integer, nullable: true }
+        expectedCash: { type: number, nullable: true }
+        reportedCash: { type: number, nullable: true }
+        difference: { type: number, nullable: true }
+
+    ChangeOwnPasswordRequest:
+      type: object
+      required: [currentPassword, newPassword]
+      properties:
+        currentPassword: { type: string, format: password }
+        newPassword: { type: string, format: password, minLength: 8 }

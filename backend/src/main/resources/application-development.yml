@@ -1,0 +1,20 @@
+# Perfil de desarrollo: SQLite persistente en archivo (prompt.md §16 - nunca solo en memoria
+# para operacion real). Se activa por defecto (spring.profiles.active=development).
+spring:
+  datasource:
+    # Concurrencia (SQLite admite un solo escritor): sin esto, dos operaciones simultaneas (ej. dos
+    # cobros) fallaban con SQLITE_BUSY -> 500. transaction_mode=IMMEDIATE toma el bloqueo de
+    # escritura al iniciar la transaccion (evita el "upgrade" lectura->escritura, que SQLite rechaza
+    # sin esperar); busy_timeout hace que la segunda espere hasta 5s en vez de fallar; WAL permite
+    # leer mientras otro escribe.
+    url: jdbc:sqlite:./data/parking.db?foreign_keys=on&journal_mode=WAL&busy_timeout=5000&transaction_mode=IMMEDIATE
+    driver-class-name: org.sqlite.JDBC
+  jpa:
+    database-platform: org.hibernate.community.dialect.SQLiteDialect
+  flyway:
+    # {vendor} = motor detectado (sqlite | mysql): migraciones propias de cada motor, ver db/vendor/.
+    locations: classpath:db/migration,classpath:db/seed,classpath:db/vendor/{vendor}
+
+logging:
+  level:
+    com.parking: DEBUG

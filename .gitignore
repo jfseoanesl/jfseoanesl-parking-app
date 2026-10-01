@@ -1,0 +1,5 @@
+# Este repo tiene sub-gitignores propios en backend/ y frontend/; este archivo cubre
+# lo que pueda quedar en la raiz.
+.env
+*.local
+.DS_Store

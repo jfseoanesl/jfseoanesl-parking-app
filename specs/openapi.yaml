@@ -148,6 +148,24 @@ paths:
               schema: { $ref: '#/components/schemas/ParkingSessionDetail' }
         '404': { description: No encontrada }
 
+  /parking-sessions/{id}/entry-receipt:
+    get:
+      summary: Comprobante de ingreso (RF-072)
+      description: >
+        Soporte para el cliente de que su vehículo ingresó. Disponible para cualquier estado de la
+        sesión (reimpresión desde Historial). La vista imprimible (/comprobantes-ingreso/{id}) aplica
+        receiptFormatJson (NIT, dirección, teléfono, empleado, pie).
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EntryReceipt' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /parking-sessions/{id}/quote:
     post:
       summary: Calcular (sin registrar) el valor a cobrar en este momento
@@ -898,6 +916,11 @@ components:
         elapsedMinutes: { type: integer }
         entryEmployee: { type: string }
         status: { type: string, enum: [EN_PARQUEADERO, FINALIZADO, ANULADO] }
+        entryNumber:
+          type: string
+          nullable: true
+          example: ING-000001
+          description: Consecutivo del comprobante de ingreso (BR-027); null en sesiones anteriores a V6.
 
     ParkingSessionDetail:
       allOf:
@@ -1138,9 +1161,10 @@ components:
           description: >
             RF-015. Objeto JSON (400 si no lo es o supera 2000 caracteres) con los campos visibles del
             comprobante: showNit, showAddress, showPhone, showEmployee, showTariff, showDuration
-            (booleanos, por defecto true) y footer (texto). Enviarlo siempre en el PUT: un valor
-            ausente se guarda como null.
-          example: '{"showNit":true,"showAddress":true,"showPhone":false,"showEmployee":true,"showTariff":true,"showDuration":true,"footer":"Gracias por su visita"}'
+            (booleanos, por defecto true), footer (texto), printOnEntry (ofrecer imprimir comprobante
+            al ingreso, por defecto false) y printOnExit (al cobrar, por defecto true). Enviarlo siempre
+            en el PUT: un valor ausente se guarda como null.
+          example: '{"showNit":true,"showAddress":true,"showPhone":false,"showEmployee":true,"showTariff":true,"showDuration":true,"footer":"Gracias por su visita","printOnEntry":true,"printOnExit":true}'
 
     VehicleType:
       type: object
@@ -1237,6 +1261,7 @@ components:
           description: Para abrir el comprobante (GET /payments/{id}/receipt)
         notes: { type: string, nullable: true }
         cancelReason: { type: string, nullable: true }
+        entryNumber: { type: string, nullable: true, example: ING-000001 }
 
     HistoryPage:
       type: object
@@ -1245,6 +1270,21 @@ components:
           type: array
           items: { $ref: '#/components/schemas/HistoryItem' }
         truncated: { type: boolean, description: true si había más de 500 resultados }
+
+    EntryReceipt:
+      type: object
+      properties:
+        parkingName: { type: string, nullable: true }
+        nit: { type: string, nullable: true }
+        address: { type: string, nullable: true }
+        phone: { type: string, nullable: true }
+        entryNumber: { type: string, nullable: true, example: ING-000001 }
+        plate: { type: string }
+        vehicleTypeName: { type: string, nullable: true }
+        entryDateTime: { type: string, format: date-time }
+        employeeName: { type: string, nullable: true }
+        notes: { type: string, nullable: true }
+        status: { type: string, enum: [EN_PARQUEADERO, FINALIZADO, ANULADO] }
 
     CashOperation:
       type: object

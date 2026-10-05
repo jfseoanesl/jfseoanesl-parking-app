@@ -349,3 +349,12 @@ caja `CASH_SESSION_CLOSED` (RF-066), filtros de auditoría por usuario y fechas 
 También se corrigió que las fechas "hoy" del frontend usaban UTC (después de las 19:00 en Bogotá daban el día
 siguiente). Verificación: backend 90/90 en SQLite y MySQL 8.4; frontend 22/22; E2E 18/18 (+12 omitidos por
 proyecto) contra el stack Docker, con 2 flujos nuevos (`e2e/full-coverage.spec.ts`).
+
+**Comprobante de ingreso y configuración de impresión (2026-10-05):** nuevo RF-072 y BR-027. Cada ingreso recibe un
+consecutivo `ING-000001` (migración V6, contador atómico como el de los pagos). El comprobante de ingreso
+(`/comprobantes-ingreso/{id}`) muestra los datos del parqueadero, el número, la placa, el tipo de vehículo, la
+fecha y hora, las observaciones y, según el formato, el empleado que registró, además de la leyenda "Conserve
+este comprobante para retirar su vehículo". En Configuración, el administrador elige si se ofrece imprimir el
+comprobante al ingreso (por defecto no) y/o a la salida (por defecto sí, como antes); desactivado, no aparece el
+botón. Historial permite reimprimir ambos comprobantes.
+

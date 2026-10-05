@@ -72,4 +72,7 @@ public class ParkingSessionEntity {
 
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
+
+    @Column(name = "entry_number", length = 20)
+    private String entryNumber;
 }

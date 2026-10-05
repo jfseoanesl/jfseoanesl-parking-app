@@ -23,6 +23,8 @@ public record ParkingSession(
         String cancelledBy,
         Instant cancelledAt,
         Instant createdAt,
-        Instant updatedAt
+        Instant updatedAt,
+        /** Consecutivo del comprobante de ingreso (ING-000001, BR-027); null en sesiones anteriores a V6. */
+        String entryNumber
 ) {
 }

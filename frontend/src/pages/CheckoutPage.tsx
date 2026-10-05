@@ -2,7 +2,8 @@ import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, ArrowRightLeft, Banknote, CircleCheck, CreditCard, Info, Printer, Tag, Wallet } from 'lucide-react'
 import { api, ApiError } from '../api/client'
-import type { CheckoutResult, ParkingSession, PaymentMethod, TariffOption, TariffQuote } from '../api/types'
+import type { CheckoutResult, ParkingConfiguration, ParkingSession, PaymentMethod, TariffOption, TariffQuote } from '../api/types'
+import { DEFAULT_RECEIPT_FORMAT, parseReceiptFormat } from '../lib/receiptFormat'
 import { formatCurrency, formatElapsed, formatTime } from '../lib/format'
 import { Button } from '../components/Button'
 import { Alert, LoadingState, Skeleton } from '../components/Feedback'
@@ -36,6 +37,7 @@ export default function CheckoutPage() {
   const [submitting, setSubmitting] = useState(false)
   const [confirming, setConfirming] = useState(false)
   const [result, setResult] = useState<CheckoutResult | null>(null)
+  const [printOnExit, setPrintOnExit] = useState(DEFAULT_RECEIPT_FORMAT.printOnExit)
 
   const selectedTariff = quote?.options.find((o) => o.tariffId === tariffId)
   const tariffChanged = selectedTariff != null && !selectedTariff.suggested
@@ -43,6 +45,10 @@ export default function CheckoutPage() {
   useEffect(() => {
     if (!sessionId) return
     api.get<ParkingSession>(`/parking-sessions/${sessionId}`).then(setSession)
+    api
+      .get<ParkingConfiguration>('/configuration')
+      .then((c) => setPrintOnExit(parseReceiptFormat(c.receiptFormatJson).printOnExit))
+      .catch(() => undefined)
     api.get<PaymentMethod[]>('/payment-methods').then((methods) => {
       setPaymentMethods(methods)
       if (methods.length > 0) setPaymentMethodId(methods[0].id)
@@ -111,7 +117,7 @@ export default function CheckoutPage() {
     }
   }
 
-  if (result) return <Receipt result={result} onDone={() => navigate('/parqueados')} onPrint={() => navigate(`/comprobantes/${result.paymentId}`)} />
+  if (result) return <Receipt result={result} onDone={() => navigate('/parqueados')} onPrint={printOnExit ? () => navigate(`/comprobantes/${result.paymentId}`) : undefined} />
   if (!session) return <LoadingState />
 
   const selectedMethod = paymentMethods.find((m) => m.id === paymentMethodId)
@@ -288,7 +294,7 @@ function SingleTariff({ option, longStay }: { option: TariffOption; longStay: bo
 }
 
 /** Comprobante de pago (RF-048): confirmacion clara del cobro realizado. */
-function Receipt({ result, onDone, onPrint }: { result: CheckoutResult; onDone: () => void; onPrint: () => void }) {
+function Receipt({ result, onDone, onPrint }: { result: CheckoutResult; onDone: () => void; onPrint?: () => void }) {
   return (
     <div className="mx-auto max-w-md">
       <div className="card overflow-hidden text-center">
@@ -312,9 +318,12 @@ function Receipt({ result, onDone, onPrint }: { result: CheckoutResult; onDone: 
           <Button size="lg" fullWidth onClick={onDone}>
             Volver a parqueados
           </Button>
-          <Button variant="secondary" fullWidth icon={<Printer aria-hidden className="size-5" />} onClick={onPrint}>
-            Ver comprobante para imprimir
-          </Button>
+          {/* RF-015: solo si la configuración pide imprimir comprobante a la salida. */}
+          {onPrint && (
+            <Button variant="secondary" fullWidth icon={<Printer aria-hidden className="size-5" />} onClick={onPrint}>
+              Ver comprobante para imprimir
+            </Button>
+          )}
         </div>
       </div>
     </div>

@@ -140,6 +140,10 @@ Sesiones de parqueo, pagos y cierres de caja nunca se eliminan físicamente; los
 Toda creación/edición de tarifas (el registro incluye todos los campos que afectan el cálculo —tipo de vehículo, modalidad, valor, **horario**, tolerancia, fracción, redondeo, prioridad, estado y vigencia— en el valor anterior y en el nuevo; hasta el 2026-09-29 solo se guardaban nombre, modalidad, valor, prioridad y estado; lo mismo aplica a la configuración del parqueadero, que hasta esa fecha se auditaba sin valores), cambio de la tarifa sugerida al cobrar (BR-008.1), anulación de sesión, corrección administrativa, reapertura de operación, cierre de caja y modificación de usuario genera un registro de auditoría con: usuario, acción, fecha, hora, entidad afectada, identificador, valor anterior (si aplica) y valor nuevo (si aplica).
 *Parametrizable:* no. *Origen:* prompt maestro §15.
 
+**BR-027 — Consecutivo del comprobante de ingreso**
+Cada ingreso recibe al registrarse un número `ING-` + 6 dígitos, reservado de forma atómica en la misma transacción (contador `ENTRY` de `operation_counter`), único (índice `uk_parking_session_entry_number`) y nunca reutilizado, aunque la sesión se anule. Las sesiones creadas antes de la migración V6 no tienen número (se muestran con "—").
+*Parametrizable:* no. *Origen:* solicitud del usuario (2026-10-05), RF-072.
+
 ## Zona horaria y tiempo
 
 **BR-026 — Servicio de tiempo centralizado**

@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { ChevronDown } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { ChevronDown, CircleCheck, Printer } from 'lucide-react'
 import { api, ApiError } from '../api/client'
-import type { VehicleType } from '../api/types'
+import type { ParkingConfiguration, ParkingSession, VehicleType } from '../api/types'
+import { DEFAULT_RECEIPT_FORMAT, parseReceiptFormat } from '../lib/receiptFormat'
+import { PlateBadge } from '../components/Badges'
 import { Button } from '../components/Button'
 import { Alert, Skeleton } from '../components/Feedback'
 import { ChoiceGroup } from '../components/Form'
@@ -25,8 +28,16 @@ export default function NewEntryPage() {
   const [notes, setNotes] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const navigate = useNavigate()
+  const [printOnEntry, setPrintOnEntry] = useState(DEFAULT_RECEIPT_FORMAT.printOnEntry)
+  /** Último ingreso registrado, para ofrecer su comprobante (RF-072) sin bloquear el siguiente. */
+  const [lastEntry, setLastEntry] = useState<ParkingSession | null>(null)
 
   useEffect(() => {
+    api
+      .get<ParkingConfiguration>('/configuration')
+      .then((c) => setPrintOnEntry(parseReceiptFormat(c.receiptFormatJson).printOnEntry))
+      .catch(() => undefined)
     api
       .get<VehicleType[]>('/vehicle-types')
       .then((types) => {
@@ -44,12 +55,13 @@ export default function NewEntryPage() {
     setError(null)
     setSubmitting(true)
     try {
-      const created = await api.post<{ plate: string }>('/parking-sessions', {
+      const created = await api.post<ParkingSession>('/parking-sessions', {
         plate,
         vehicleTypeId,
         notes: notes || undefined,
       })
       toast(`Ingreso registrado: ${created.plate}`)
+      setLastEntry(created)
       // Lista para el siguiente ingreso sin navegar (RNF-001): se conserva el tipo elegido.
       setPlate('')
       setNotes('')
@@ -144,6 +156,23 @@ export default function NewEntryPage() {
           {submitting ? 'Registrando…' : 'Confirmar ingreso'}
         </Button>
       </form>
+
+      {printOnEntry && lastEntry && (
+        <div aria-live="polite" className="card mt-4 flex flex-wrap items-center gap-3 p-4">
+          <CircleCheck aria-hidden className="size-6 shrink-0 text-success-600" />
+          <PlateBadge plate={lastEntry.plate} size="sm" />
+          <span className="min-w-0 flex-1 text-sm text-neutral-600">
+            Ingreso <span className="font-mono font-medium text-neutral-900">{lastEntry.entryNumber ?? ''}</span>
+          </span>
+          <Button
+            variant="secondary"
+            icon={<Printer aria-hidden className="size-5" />}
+            onClick={() => navigate(`/comprobantes-ingreso/${lastEntry.id}`)}
+          >
+            Imprimir comprobante
+          </Button>
+        </div>
+      )}
     </div>
   )
 }

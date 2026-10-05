@@ -19,13 +19,14 @@ public record ParkingSessionResponse(
         String appliedTariffName,
         BigDecimal calculatedAmount,
         String notes,
-        String cancelReason
+        String cancelReason,
+        String entryNumber
 ) {
     public static ParkingSessionResponse from(ParkingSessionView view) {
         return new ParkingSessionResponse(
                 view.id(), view.plate(), view.vehicleTypeCode(), view.vehicleTypeName(),
                 view.entryDateTime(), view.exitDateTime(), view.elapsedMinutes(), view.entryEmployeeName(),
                 view.status().name(), view.appliedTariffName(), view.calculatedAmount(), view.notes(),
-                view.cancelReason());
+                view.cancelReason(), view.entryNumber());
     }
 }

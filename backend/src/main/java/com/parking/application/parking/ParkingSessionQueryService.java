@@ -69,7 +69,8 @@ public class ParkingSessionQueryService {
                 tariffName,
                 session.calculatedAmount(),
                 session.notes(),
-                session.cancelReason()
+                session.cancelReason(),
+                session.entryNumber()
         );
     }
 }

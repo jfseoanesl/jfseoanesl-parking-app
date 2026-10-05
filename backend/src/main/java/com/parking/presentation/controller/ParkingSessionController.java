@@ -2,6 +2,7 @@ package com.parking.presentation.controller;
 
 import com.parking.application.parking.CheckoutResult;
 import com.parking.application.parking.ParkingEntryService;
+import com.parking.application.parking.EntryReceiptService;
 import com.parking.application.parking.ParkingHistoryService;
 import com.parking.application.parking.ParkingExitService;
 import com.parking.application.parking.ParkingSessionQueryService;
@@ -42,14 +43,17 @@ public class ParkingSessionController {
     private final ParkingExitService parkingExitService;
     private final ParkingSessionQueryService parkingSessionQueryService;
     private final ParkingHistoryService parkingHistoryService;
+    private final EntryReceiptService entryReceiptService;
 
     public ParkingSessionController(ParkingEntryService parkingEntryService, ParkingExitService parkingExitService,
                                      ParkingSessionQueryService parkingSessionQueryService,
-                                     ParkingHistoryService parkingHistoryService) {
+                                     ParkingHistoryService parkingHistoryService,
+                                     EntryReceiptService entryReceiptService) {
         this.parkingEntryService = parkingEntryService;
         this.parkingExitService = parkingExitService;
         this.parkingSessionQueryService = parkingSessionQueryService;
         this.parkingHistoryService = parkingHistoryService;
+        this.entryReceiptService = entryReceiptService;
     }
 
     /** RF-058: historial con filtros (solo Administrador). Rango por fecha de ingreso, inclusivo. */
@@ -81,6 +85,12 @@ public class ParkingSessionController {
     @GetMapping("/{id}")
     public ParkingSessionResponse getById(@PathVariable String id) {
         return ParkingSessionResponse.from(parkingSessionQueryService.getById(id));
+    }
+
+    /** RF-072: datos del comprobante de ingreso (cualquier estado, para reimpresión). */
+    @GetMapping("/{id}/entry-receipt")
+    public EntryReceiptService.EntryReceiptData entryReceipt(@PathVariable String id) {
+        return entryReceiptService.getBySessionId(id);
     }
 
     @PostMapping

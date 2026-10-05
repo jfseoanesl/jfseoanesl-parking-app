@@ -224,7 +224,7 @@ Desktop: mismo formulario centrado en tarjeta de 400px sobre fondo neutro.
 │  [    Confirmar ingreso   ]│
 └──────────────────────────┘
 ```
-Tras confirmar: `Toast` de éxito + regreso automático a esta misma pantalla lista para el siguiente ingreso (minimiza pasos para el flujo repetitivo, RNF-001).
+Tras confirmar: `Toast` de éxito + regreso automático a esta misma pantalla lista para el siguiente ingreso (minimiza pasos para el flujo repetitivo, RNF-001). Si la configuración tiene activado *Imprimir comprobante al registrar el ingreso* (RF-015/RF-072), bajo el formulario queda un aviso con la placa, el número `ING-…` y el botón **Imprimir comprobante**, que abre `/comprobantes-ingreso/{id}` (vista imprimible con Volver/Imprimir); el aviso se reemplaza con el siguiente ingreso. Igualmente, en Cobro/salida el botón *Ver comprobante para imprimir* solo aparece si *Imprimir comprobante al registrar la salida* está activado.
 
 ### 5.4 Vehículos parqueados
 

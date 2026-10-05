@@ -30,7 +30,7 @@
 | RF-012 | El administrador debe poder configurar la zona horaria del parqueadero (semilla: `America/Bogota`). | Administrador | M | BR-026 |
 | RF-013 | El administrador debe poder configurar la moneda (semilla: COP). | Administrador | S | — |
 | RF-014 | El administrador debe poder configurar el catálogo de medios de pago. | Administrador | M | BR-018 |
-| RF-015 | El administrador debe poder configurar los campos visibles del comprobante de pago. | Administrador | S | BR-017 |
+| RF-015 | El administrador debe poder configurar los campos visibles del comprobante de pago y si se ofrece imprimir comprobante al ingreso (`printOnEntry`, por defecto no) y/o a la salida (`printOnExit`, por defecto sí). | Administrador | S | BR-017 |
 
 ## Módulo: Tipos de vehículo
 
@@ -60,6 +60,7 @@
 | RF-027 | El sistema debe confirmar visualmente el ingreso registrado. | — | M | — |
 | RF-028 | El sistema debe permitir registrar observaciones opcionales en el ingreso. | Empleado | C | — |
 | RF-029 | El sistema debe registrar qué empleado realizó el ingreso. | — | M | — |
+| RF-072 | El sistema debe permitir imprimir un comprobante de ingreso como soporte para el cliente, con consecutivo `ING-000001`, placa, tipo de vehículo, fecha/hora de ingreso, observaciones y (según el formato) el empleado que registró. Se ofrece tras el ingreso solo si está activado en la configuración (RF-015) y siempre se puede reimprimir desde Historial. | Empleado, Administrador | S | BR-027 |
 
 ## Módulo: Vehículos actualmente estacionados
 

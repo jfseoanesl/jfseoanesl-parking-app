@@ -90,6 +90,7 @@ erDiagram
         timestamp cancelled_at
         timestamp created_at
         timestamp updated_at
+        varchar entry_number UK
     }
     PAYMENT_METHOD {
         char36 id PK
@@ -171,6 +172,7 @@ erDiagram
 | `vehicle_type` | único `(code)` | integridad de tipos semilla. |
 | `parking_session` | índice `(plate)`; único condicional `(plate)` WHERE `status='EN_PARQUEADERO'` | BR-001 — bloquear doble sesión activa. En MySQL: índice único sobre columna generada `plate_active` (`plate` si `status='EN_PARQUEADERO'`, si no `NULL`); en SQLite: índice único parcial nativo (`CREATE UNIQUE INDEX ... WHERE status='EN_PARQUEADERO'`). Documentado en la migración correspondiente, con verificación adicional a nivel de servicio (transacción + reintento) como segunda barrera (RNF-018). |
 | `payment` | único `(parking_session_id)`; único `(operation_number)` | BR-021 — idempotencia de cobro. |
+| `parking_session` | único `(entry_number)` (`uk_parking_session_entry_number`; admite varios NULL) | BR-027 — consecutivo de ingreso irrepetible. |
 | `cash_session` | índice único condicional `(employee_id)` WHERE `status='OPEN'` | BR-022 — una caja abierta por empleado. |
 | `tariff` | índice `(vehicle_type_id, active, modality)` | resolución rápida de tarifas aplicables (BR-007/BR-008). |
 | `audit_log` | índice `(entity_name, entity_id)`; índice `(occurred_at)` | consultas de auditoría por entidad y por rango de fecha (RF-067). |
@@ -193,6 +195,7 @@ Estos datos semilla se implementarán como migración Flyway específica (`V2__s
 - **`V3_1__mysql_foreign_keys_and_datetime.sql`** (Fase 12, **solo MySQL**, `db/vendor/mysql`): las 18 llaves foráneas que MySQL ignoraba en V1 y las fechas como `DATETIME(6)`. Ver `decisions/ADR-006-migracion-mysql.md`.
 - **`V4__reference_data.sql`** (2026-09-29): datos de referencia en todos los perfiles (roles, tipos de vehículo, medios de pago, configuración inicial); idempotente. Ver `decisions/ADR-007-arranque-produccion.md`.
 - **`V5__operation_counter.sql`** (2026-09-29): tabla `operation_counter (name, counter_value)` para reservar el consecutivo de operación de los pagos (RF-049) de forma atómica. Antes se calculaba como `COUNT(payment) + 1` y, con dos cobros simultáneos en MySQL, ambos obtenían el mismo número y uno fallaba con 500. Arranca en `COUNT(*)` de los pagos existentes, que coincide con el último número emitido porque los pagos nunca se borran (BR-024).
+- **`V6__parking_session_entry_number.sql`** (2026-10-05): columna `parking_session.entry_number VARCHAR(20)` con índice único y fila `ENTRY` en `operation_counter` (arranca en 0) para el comprobante de ingreso (RF-072, BR-027). Portable SQLite/MySQL. Las sesiones previas quedan con `entry_number` NULL.
 
 ## Estrategia SQLite → MySQL
 

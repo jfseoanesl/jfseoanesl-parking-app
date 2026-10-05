@@ -14,6 +14,7 @@ import TariffsPage from './pages/TariffsPage'
 import ConfigurationPage from './pages/ConfigurationPage'
 import AuditLogPage from './pages/AuditLogPage'
 import ReportsPage from './pages/ReportsPage'
+import EntryReceiptPage from './pages/EntryReceiptPage'
 import ReceiptPage from './pages/ReceiptPage'
 import HistoryPage from './pages/HistoryPage'
 
@@ -44,6 +45,7 @@ function App() {
               <Route path="reportes" element={<ReportsPage />} />
               <Route path="historial" element={<HistoryPage />} />
               <Route path="comprobantes/:paymentId" element={<ReceiptPage />} />
+              <Route path="comprobantes-ingreso/:sessionId" element={<EntryReceiptPage />} />
             </Route>
           </Routes>
         </ToastProvider>

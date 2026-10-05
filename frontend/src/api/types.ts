@@ -35,6 +35,8 @@ export interface ParkingSession {
   calculatedAmount: number | null
   notes: string | null
   cancelReason: string | null
+  /** Consecutivo del comprobante de ingreso (BR-027); null en sesiones anteriores. */
+  entryNumber: string | null
 }
 
 /** Una tarifa aplicable a la sesion, ya calculada (BR-008.1). */
@@ -211,6 +213,7 @@ export interface HistoryItem {
   paymentId: string | null
   notes: string | null
   cancelReason: string | null
+  entryNumber: string | null
 }
 
 export interface HistoryPage {
@@ -272,4 +275,23 @@ export interface ReceiptFormat {
   showTariff: boolean
   showDuration: boolean
   footer: string
+  /** Ofrecer imprimir comprobante al registrar el ingreso (RF-072). */
+  printOnEntry: boolean
+  /** Ofrecer imprimir comprobante al registrar la salida/cobro (RF-050). */
+  printOnExit: boolean
+}
+
+/** RF-072: datos del comprobante de ingreso (GET /parking-sessions/{id}/entry-receipt). */
+export interface EntryReceipt {
+  parkingName: string | null
+  nit: string | null
+  address: string | null
+  phone: string | null
+  entryNumber: string | null
+  plate: string
+  vehicleTypeName: string | null
+  entryDateTime: string
+  employeeName: string | null
+  notes: string | null
+  status: ParkingStatus
 }

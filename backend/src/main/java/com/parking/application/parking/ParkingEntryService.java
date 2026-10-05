@@ -49,7 +49,8 @@ public class ParkingEntryService {
         ParkingSession session = new ParkingSession(
                 UUID.randomUUID().toString(), plate, vehicleType.id(), now, null,
                 ParkingStatus.EN_PARQUEADERO, employeeId, null, null, null,
-                notes, null, null, null, now, now);
+                notes, null, null, null, now, now,
+                "ING-" + String.format("%06d", parkingSessionRepository.nextEntrySequence())); // BR-027
 
         return parkingSessionRepository.save(session);
     }

@@ -18,7 +18,8 @@ Convenciones: autenticación por cookie de sesión (`10-security-specification.m
 |---|---|---|---|
 | GET | `/api/parking-sessions/active` | Admin, Empleado | Lista sesiones `EN_PARQUEADERO` (soporta `?plate=` para búsqueda). |
 | POST | `/api/parking-sessions` | Empleado | Registra ingreso (RF-023). `409` si ya existe sesión activa para la placa (BR-001). |
-| GET | `/api/parking-sessions/{id}` | Admin, Empleado | Detalle de una sesión. |
+| GET | `/api/parking-sessions/{id}` | Admin, Empleado | Detalle de una sesión (incluye `entryNumber`). |
+| GET | `/api/parking-sessions/{id}/entry-receipt` | Admin, Empleado | Datos del comprobante de ingreso (RF-072): parqueadero, `entryNumber`, placa, tipo, fecha/hora, empleado, observaciones, estado. Cualquier estado (reimpresión). `404` si no existe. |
 | GET | `/api/parking-sessions` | Admin | Historial con filtros `?from=&to=&plate=&status=&employeeId=` (RF-058). `from`/`to` obligatorios (fecha de ingreso); responde `{items, truncated}` con máximo 500 resultados. |
 | POST | `/api/parking-sessions/{id}/quote` | Admin, Empleado | Calcula (sin registrar) el valor a cobrar si la sesión cerrara "ahora" — usado por la pantalla de salida antes de confirmar (UC-004 paso 3-4). Los campos de primer nivel son la tarifa sugerida; `options` lista todas las aplicables (sugerida primero, `suggested: true`) con su valor (BR-008.1). |
 | POST | `/api/parking-sessions/{id}/checkout` | Empleado | Registra salida + cobro en una sola operación transaccional (RF-034 a RF-042). Body incluye `paymentMethodId`, `chargedAmount` y, opcional, `tariffId` (tarifa alterna elegida; omitido = la sugerida). `409` si ya está finalizada/anulada, `TARIFF_NOT_APPLICABLE` si la tarifa elegida no aplica a la sesión, o `CHARGED_AMOUNT_MISMATCH` si `chargedAmount` no es exactamente el valor calculado en ese momento (volver a cotizar). |

@@ -104,7 +104,8 @@ public class ParkingExitService {
         ParkingSession closedSession = new ParkingSession(
                 session.id(), session.plate(), session.vehicleTypeId(), session.entryDateTime(), exitDateTime,
                 ParkingStatus.FINALIZADO, session.entryEmployeeId(), employeeId, tariffResult.tariffId(),
-                tariffResult.amount(), session.notes(), null, null, null, session.createdAt(), exitDateTime);
+                tariffResult.amount(), session.notes(), null, null, null, session.createdAt(), exitDateTime,
+                session.entryNumber());
         ParkingSession savedSession = parkingSessionRepository.save(closedSession);
 
         // Antes: count()+1, que con dos cobros simultaneos en MySQL generaba el mismo numero y el
@@ -145,7 +146,7 @@ public class ParkingExitService {
         ParkingSession cancelled = new ParkingSession(session.id(), session.plate(), session.vehicleTypeId(),
                 session.entryDateTime(), session.exitDateTime(), ParkingStatus.ANULADO, session.entryEmployeeId(),
                 session.exitEmployeeId(), session.appliedTariffId(), session.calculatedAmount(), session.notes(),
-                reason, adminUserId, now, session.createdAt(), now);
+                reason, adminUserId, now, session.createdAt(), now, session.entryNumber());
         ParkingSession saved = parkingSessionRepository.save(cancelled);
 
         auditService.record(adminUserId, "PARKING_SESSION_CANCELLED", "ParkingSession", sessionId,

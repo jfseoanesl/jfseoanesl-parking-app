@@ -54,7 +54,8 @@ public class ParkingHistoryService {
             String operationNumber,
             String paymentId,
             String notes,
-            String cancelReason
+            String cancelReason,
+            String entryNumber
     ) {
     }
 
@@ -149,6 +150,6 @@ public class ParkingHistoryService {
                 payment.map(Payment::chargedAmount).orElse(null),
                 payment.map(Payment::operationNumber).orElse(null),
                 payment.map(Payment::id).orElse(null),
-                s.notes(), s.cancelReason());
+                s.notes(), s.cancelReason(), s.entryNumber());
     }
 }

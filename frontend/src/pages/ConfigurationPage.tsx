@@ -124,6 +124,21 @@ export default function ConfigurationPage() {
                   </label>
                 ))}
               </div>
+              <p className="mt-4 text-sm font-medium text-neutral-800">Imprimir comprobante</p>
+              <p className="text-sm text-neutral-500">Al activarlo, tras el registro aparece el botón para imprimir el comprobante.</p>
+              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                {PRINT_TOGGLES.map(([key, label]) => (
+                  <label key={key} className="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg border border-neutral-200 px-3 text-sm text-neutral-700 hover:bg-neutral-50">
+                    <input
+                      type="checkbox"
+                      className="size-4 accent-primary-600"
+                      checked={receiptFormat[key]}
+                      onChange={(e) => setReceiptFormat((f) => ({ ...f, [key]: e.target.checked }))}
+                    />
+                    {label}
+                  </label>
+                ))}
+              </div>
               <TextField
                 label="Pie de página"
                 className="mt-4"
@@ -153,7 +168,14 @@ export default function ConfigurationPage() {
   )
 }
 
-const RECEIPT_TOGGLES: [Exclude<keyof ReceiptFormat, 'footer'>, string][] = [
+type ReceiptToggle = Exclude<keyof ReceiptFormat, 'footer'>
+
+const PRINT_TOGGLES: [ReceiptToggle, string][] = [
+  ['printOnEntry', 'Al registrar el ingreso'],
+  ['printOnExit', 'Al registrar la salida (cobro)'],
+]
+
+const RECEIPT_TOGGLES: [ReceiptToggle, string][] = [
   ['showNit', 'Mostrar NIT'],
   ['showAddress', 'Mostrar dirección'],
   ['showPhone', 'Mostrar teléfono'],

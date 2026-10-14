@@ -666,6 +666,58 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/ApiError' }
 
+  # --- Respaldo (RF-073, ADR-009) ---
+
+  /admin/backup:
+    get:
+      summary: Exportar el respaldo completo de la base de datos (Administrador)
+      description: >
+        JSON portable (independiente del motor) con todas las tablas. Contiene datos sensibles
+        (usuarios con hash de contraseña, cobros, auditoría). Audita DATABASE_EXPORTED.
+      responses:
+        '200':
+          description: Archivo de respaldo
+          headers:
+            Content-Disposition:
+              schema: { type: string, example: 'attachment; filename="parking-respaldo_2026-10-06_0743.json"' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BackupFile' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AdminOnly' }
+
+  /admin/backup/import:
+    post:
+      summary: Importar un respaldo reemplazando TODOS los datos (Administrador)
+      description: >
+        Transacción única: valida formato, versión de esquema (debe coincidir), tablas completas y
+        al menos un administrador activo; borra y reinserta todas las tablas y restaura los
+        consecutivos. Si algo falla, nada cambia. Audita DATABASE_IMPORTED si quien importa existe en
+        los datos restaurados.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BackupFile' }
+      responses:
+        '200':
+          description: Importado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  schemaVersion: { type: string, example: '6' }
+                  counts: { type: object, additionalProperties: { type: integer } }
+        '400':
+          description: Respaldo inválido, de otra versión de esquema, incompleto o sin administrador activo
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AdminOnly' }
+        '413': { description: El archivo supera el límite de 50 MB del proxy }
+
   # --- Auditoría (UC-012, RF-067, BR-025) ---
 
   /audit-logs:
@@ -681,7 +733,7 @@ paths:
         - name: entity
           in: query
           required: false
-          schema: { type: string, enum: [Tariff, User, CashSession, ParkingSession, Configuration] }
+          schema: { type: string, enum: [Tariff, User, CashSession, ParkingSession, Configuration, Database] }
         - name: entityId
           in: query
           required: false
@@ -1231,7 +1283,8 @@ components:
           description: >
             TARIFF_CREATED, TARIFF_UPDATED, TARIFF_ACTIVATED, TARIFF_DEACTIVATED, TARIFF_OVERRIDDEN,
             USER_CREATED, USER_ACTIVATED, USER_DEACTIVATED, USER_PASSWORD_CHANGED,
-            CASH_SESSION_CLOSED, CASH_SESSION_ADJUSTED, PARKING_SESSION_CANCELLED, CONFIGURATION_UPDATED.
+            CASH_SESSION_CLOSED, CASH_SESSION_ADJUSTED, PARKING_SESSION_CANCELLED, CONFIGURATION_UPDATED,
+            DATABASE_EXPORTED, DATABASE_IMPORTED.
         entityName: { type: string, example: Tariff }
         entityId: { type: string }
         oldValue: { type: string, nullable: true, description: JSON con el estado anterior (si aplica). }
@@ -1311,6 +1364,27 @@ components:
         expectedCash: { type: number, nullable: true }
         reportedCash: { type: number, nullable: true }
         difference: { type: number, nullable: true }
+
+    BackupFile:
+      type: object
+      required: [format, formatVersion, schemaVersion, tables]
+      properties:
+        format: { type: string, enum: [parking-backup] }
+        formatVersion: { type: integer, example: 1 }
+        schemaVersion: { type: string, example: '6', description: Versión Flyway; debe coincidir al importar }
+        exportedAt: { type: string, format: date-time }
+        exportedBy: { type: string, example: admin }
+        sourceDatabase: { type: string, example: SQLite }
+        counts: { type: object, additionalProperties: { type: integer } }
+        tables:
+          type: object
+          description: >
+            Una lista por tabla, con los campos de la entidad (camelCase): roles, users, vehicleTypes,
+            paymentMethods, configuration, tariffs, cashSessions, parkingSessions, payments,
+            cashMovements, auditLogs y operationCounters ({name, counterValue}).
+          additionalProperties:
+            type: array
+            items: { type: object }
 
     ChangeOwnPasswordRequest:
       type: object

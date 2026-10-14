@@ -153,3 +153,4 @@
 | RF-069 | La aplicación debe poder instalarse como PWA (manifest + iconos + service worker). | — | M | BR-019 |
 | RF-070 | La aplicación debe mostrar el shell básico de la interfaz aun con pérdida temporal de conectividad. | — | M | BR-019 |
 | RF-071 | El backend debe exponer un endpoint de health check. | — | M | — |
+| RF-073 | El administrador debe poder exportar la base de datos completa a un archivo JSON portable (SQLite o MySQL) e importarlo en otra ejecución, reemplazando todos los datos de forma atómica, solo si la versión del esquema coincide y el respaldo tiene al menos un administrador activo. Ambas acciones quedan auditadas. | Administrador | S | BR-025 |

@@ -8,21 +8,11 @@ import { Alert, EmptyState, Skeleton } from '../components/Feedback'
 import { SegmentedControl, TextField } from '../components/Form'
 import { Card, PageHeader, StatCard } from '../components/Layout'
 import { useToast } from '../components/Toast'
+import { saveBlob } from '../lib/download'
 
 type Preset = 'daily' | 'weekly' | 'monthly' | 'custom'
 type ExportFormat = 'xlsx' | 'pdf' | 'csv'
 
-/** Descarga un Blob con su nombre (solo navegador: la app es una PWA). */
-function saveBlob(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = filename
-  document.body.appendChild(link)
-  link.click()
-  link.remove()
-  URL.revokeObjectURL(url)
-}
 
 const PRESETS: { value: Preset; label: string }[] = [
   { value: 'daily', label: 'Diario' },

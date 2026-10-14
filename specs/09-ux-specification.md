@@ -360,6 +360,12 @@ Formulario de tarifa (crear/editar) en pantalla completa o panel lateral en desk
 └──────────────────────────┘
 ```
 
+### 5.12 Respaldo (RF-073)
+
+Dos tarjetas (lado a lado en desktop, apiladas en móvil):
+- **Exportar respaldo**: advertencia de datos sensibles (ámbar) y botón *Descargar respaldo*.
+- **Importar respaldo**: advertencia (roja) de que se borran todos los datos, selector de archivo `.json`, resumen leído en el navegador (fecha, motor de origen, versión de esquema, conteos por tabla) y botón *Importar y reemplazar* (`danger`). La confirmación (`ConfirmDialog`) exige escribir **REEMPLAZAR**; al terminar se cierra la sesión y se va al login.
+
 > Auditoría (pantalla adicional de administrador, no listada entre las 11 mínimas pero requerida por `prompt.md` §15): misma estructura de `ResponsiveList` que Historial, con columnas Usuario/Acción/Entidad/Fecha y detalle expandible de valor anterior/nuevo.
 
 ---

@@ -28,6 +28,7 @@ const ADMIN_NAV: NavItem[] = [
   { label: 'Caja', path: '/caja', implemented: true },
   { label: 'Configuración', path: '/configuracion', implemented: true },
   { label: 'Auditoría', path: '/auditoria', implemented: true },
+  { label: 'Respaldo', path: '/respaldo', implemented: true },
 ]
 
 /** Barra inferior movil del administrador: 4 mas usados + "Mas" (09-ux-specification.md §1). */

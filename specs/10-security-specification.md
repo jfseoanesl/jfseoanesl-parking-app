@@ -31,10 +31,19 @@
 | Ver auditoría | ✅ | ❌ |
 | Anular sesión de parqueo | ✅ | ❌ |
 | Corregir cierre de caja finalizado | ✅ | ❌ |
+| Exportar/importar respaldo completo (RF-073) | ✅ | ❌ |
 
 ## Primer administrador de una instalación nueva
 
 No existen credenciales por defecto en producción (`prompt.md` §33). El primer administrador se crea al arrancar a partir de `PARKING_BOOTSTRAP_ADMIN_USERNAME` y `PARKING_BOOTSTRAP_ADMIN_PASSWORD` (mínimo 8 caracteres; opcional `PARKING_BOOTSTRAP_ADMIN_FULL_NAME`), solo si todavía no existe ningún administrador. La contraseña se guarda con BCrypt y nunca se escribe en el log; la creación queda auditada. Tras el primer arranque hay que retirar la variable de contraseña del entorno y cambiarla desde la aplicación. Detalle y alternativas descartadas en `decisions/ADR-007-arranque-produccion.md`.
+
+## Respaldo de la base de datos (RF-073, ADR-009)
+
+- `/api/admin/**` exige rol ADMIN **por URL** (`SecurityConfig`) además de `@PreAuthorize`: un no administrador recibe 403 antes de que el servidor lea o valide el cuerpo.
+- El archivo exportado contiene datos sensibles: usuarios (solo **hash BCrypt** de la contraseña, nunca texto plano), cobros y auditoría. Va sin cifrar por decisión del usuario; la pantalla advierte que debe guardarse en un lugar seguro.
+- La importación reemplaza todo en una transacción, rechaza respaldos sin un administrador activo (evita dejar la instalación sin acceso) o con contraseñas que no sean BCrypt, exige escribir `REEMPLAZAR` en la UI y se audita (`DATABASE_EXPORTED` / `DATABASE_IMPORTED`, o WARN en el log si el usuario que importa no existe en los datos restaurados).
+- Las sesiones de usuarios que ya no existen tras importar quedan inválidas (`ActiveUserSessionFilter`).
+- Límite de 50 MB por petición en el proxy (`client_max_body_size`).
 
 ## Contraseñas
 

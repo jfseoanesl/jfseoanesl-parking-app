@@ -101,6 +101,15 @@ npm run dev
 
 Copia `.env.example` a `.env`, complétalo, y arranca con `SPRING_PROFILES_ACTIVE=production`. Procedimiento completo y verificado (Fase 12): `specs/decisions/ADR-006-migracion-mysql.md`. Ver también "Despliegue con Docker" abajo para el camino contenedorizado equivalente.
 
+## Respaldo y traslado de datos a otra instalación
+
+Como administrador, en **Respaldo** (menú lateral):
+1. **Descargar respaldo**: genera `parking-respaldo_<fecha>.json` con todos los datos. Contiene usuarios, cobros y auditoría, así que hay que guardarlo en un lugar seguro.
+2. En la otra instalación, que debe tener la **misma versión** de la aplicación (puede ser SQLite o MySQL), entra como administrador, ve a **Respaldo → Importar**, elige el archivo, revisa el resumen y confirma escribiendo `REEMPLAZAR`.
+3. Todos los datos de esa instalación se reemplazan. Si algo falla, no cambia nada. Se cierra la sesión y se entra con los usuarios del respaldo.
+
+Detalle técnico: `specs/decisions/ADR-009-respaldo-base-de-datos.md`.
+
 ## Despliegue con Docker
 
 Requiere Docker y Docker Compose. Hay dos stacks, uno para cada perfil del backend. Usan puertos y nombres de proyecto distintos (`parking` y `parking-prod`), así que pueden correr a la vez.

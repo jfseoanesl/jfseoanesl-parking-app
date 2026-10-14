@@ -358,3 +358,9 @@ este comprobante para retirar su vehículo". En Configuración, el administrador
 comprobante al ingreso (por defecto no) y/o a la salida (por defecto sí, como antes); desactivado, no aparece el
 botón. Historial permite reimprimir ambos comprobantes.
 
+**Respaldo completo de la base de datos (2026-10-06):** nuevo RF-073 y ADR-009. El administrador exporta, desde
+**Respaldo**, un JSON portable con todas las tablas y lo importa en otra ejecución. La importación reemplaza todo de
+forma atómica y exige la misma versión de esquema y un administrador activo. Verificado con
+`BackupIntegrationTest` (backend 98/98 en SQLite y MySQL), pruebas unitarias del frontend (26/26), E2E 21/21 y una
+transferencia real de la instalación SQLite a una MySQL temporal, con conteos y montos idénticos.
+

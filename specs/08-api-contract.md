@@ -66,6 +66,13 @@ Convenciones: autenticación por cookie de sesión (`10-security-specification.m
 | GET | `/api/reports/summary?from=&to=` | Admin | Reporte semanal/mensual/personalizado (mismo endpoint parametrizado por rango). |
 | GET | `/api/reports/summary/export?from=&to=&format=xlsx\|pdf\|csv` | Admin | Descarga el mismo reporte en Excel, PDF o CSV (RF-063, `decisions/ADR-008-exportacion-reportes.md`). `Content-Disposition: attachment; filename=reporte-parqueadero_<período>.<ext>`. CSV con `;`, UTF-8 con BOM y protección contra inyección de fórmulas. `400` si el formato no es `xlsx`/`pdf`/`csv` o si `from > to`. |
 
+## Respaldo (RF-073, `decisions/ADR-009-respaldo-base-de-datos.md`)
+
+| Método | Ruta | Rol | Descripción |
+|---|---|---|---|
+| GET | `/api/admin/backup` | Admin | Descarga el respaldo completo (`parking-respaldo_<yyyy-MM-dd_HHmm>.json`): formato, versión de esquema, conteos y todas las tablas. Audita `DATABASE_EXPORTED`. |
+| POST | `/api/admin/backup/import` | Admin | Cuerpo: el JSON del respaldo. **Reemplaza todos los datos** en una transacción. `400` si el formato no es válido, la versión de esquema no coincide, faltan tablas o no hay un administrador activo (los datos no cambian). Responde `{schemaVersion, counts}`. |
+
 ## Usuarios
 
 | Método | Ruta | Rol | Descripción |

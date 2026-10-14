@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import {
   ChartColumn,
+  DatabaseBackup,
   CirclePlus,
   History,
   House,
@@ -31,6 +32,7 @@ const ICONS: Record<string, (className: string) => ReactNode> = {
   Usuarios: (c) => <Users aria-hidden className={c} />,
   Configuración: (c) => <Settings aria-hidden className={c} />,
   Auditoría: (c) => <ShieldCheck aria-hidden className={c} />,
+  Respaldo: (c) => <DatabaseBackup aria-hidden className={c} />,
 }
 
 export function navIcon(label: string, className = 'size-5 shrink-0'): ReactNode {

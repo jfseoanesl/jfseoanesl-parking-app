@@ -23,6 +23,8 @@ const ACTION_LABELS: Record<string, string> = {
   PARKING_SESSION_CANCELLED: 'Parqueo anulado',
   TARIFF_OVERRIDDEN: 'Tarifa cambiada al cobrar',
   CONFIGURATION_UPDATED: 'Configuración modificada',
+  DATABASE_EXPORTED: 'Respaldo exportado',
+  DATABASE_IMPORTED: 'Respaldo importado',
 }
 
 const ENTITY_LABELS: Record<string, string> = {
@@ -31,11 +33,13 @@ const ENTITY_LABELS: Record<string, string> = {
   CashSession: 'Caja',
   ParkingSession: 'Sesiones de parqueo',
   Configuration: 'Configuración',
+  Database: 'Respaldo',
 }
 
 /** Acciones sensibles resaltadas (anulaciones, correcciones de caja). */
 function actionTone(action: string): 'danger' | 'warning' | 'neutral' {
   if (action.endsWith('_CANCELLED') || action.endsWith('_DEACTIVATED')) return 'danger'
+  if (action === 'DATABASE_IMPORTED') return 'danger'
   if (action.endsWith('_ADJUSTED') || action.endsWith('_PASSWORD_CHANGED') || action === 'TARIFF_OVERRIDDEN') return 'warning'
   return 'neutral'
 }

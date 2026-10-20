@@ -1,0 +1,5 @@
+# Los scripts y workflows se ejecutan en Linux (contenedores y runners de GitHub Actions): siempre LF,
+# aunque se editen en Windows. Un "\r" al final de línea rompe bash ("$'\r': command not found").
+*.sh   text eol=lf
+*.yml  text eol=lf
+*.yaml text eol=lf

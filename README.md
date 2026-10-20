@@ -152,4 +152,35 @@ docker compose -f docker-compose.prod.yml up --build -d
 - Para repetir la verificación del código contra MySQL (requiere Docker): `bash scripts/verify-mysql.sh`.
 - Las diferencias de motor viven en `backend/src/main/resources/db/vendor/{motor}` (Flyway `classpath:db/vendor/{vendor}`). Hoy solo MySQL tiene una (`V3_1`: 18 llaves foráneas que MySQL ignoraba y fechas `DATETIME(6)`).
 
+## CI/CD (GitHub Actions → Docker Hub)
+
+El flujo `.github/workflows/ci-cd.yml` corre en cada push y pull request a `master`:
+
+1. **Pruebas**, en paralelo:
+   - backend sobre SQLite (`mvn test`);
+   - backend sobre MySQL 8.4 (`scripts/verify-mysql.sh`);
+   - frontend: tipos, Vitest y build.
+2. **Imágenes**, solo si las pruebas pasan: construye `parking-backend` y `parking-frontend`.
+
+| Evento | Qué publica en Docker Hub |
+|---|---|
+| Pull request | Nada (solo construye las imágenes para validar los Dockerfiles) |
+| Push a `master` | `:latest` y `:sha-<commit>` |
+| Tag `vX.Y.Z` (ej. `git tag v1.2.0 && git push origin v1.2.0`) | `:1.2.0`, `:1.2` y `:latest` |
+| Ejecución manual (Actions → CI/CD → Run workflow) | `:sha-<commit>` |
+
+**Configuración, una sola vez**, en GitHub → *Settings → Secrets and variables → Actions*:
+- `DOCKERHUB_USERNAME`: tu usuario de Docker Hub. Las imágenes quedan como `<usuario>/parking-backend` y `<usuario>/parking-frontend`.
+- `DOCKERHUB_TOKEN`: un *Access Token* de Docker Hub (*Account settings → Personal access tokens*) con permiso **Read & Write**. No uses tu contraseña.
+
+**Desplegar con las imágenes publicadas**, sin compilar en el servidor; usa el mismo `.env` de producción:
+
+```bash
+export DOCKERHUB_NAMESPACE=<usuario> IMAGE_TAG=1.2.0   # o latest / sha-<commit>
+docker compose -f docker-compose.prod.yml -f docker-compose.hub.yml pull
+docker compose -f docker-compose.prod.yml -f docker-compose.hub.yml up -d --no-build
+```
+
+Detalle: `specs/decisions/ADR-011-ci-cd.md`.
+
 Ambos stacks se verificaron manualmente en esta sesión: build de las dos imágenes, arranque con healthchecks en verde, login a través del proxy de nginx (mismo mecanismo de doble envío CSRF que en desarrollo; esa verificación se hizo con curl, sin cabecera `Origin`, y no detectó que el navegador recibía 403 — corregido después en `frontend/nginx.conf`, ver "Rediseño UI/UX"), fallback de rutas de la SPA (`/reportes` sin recargar), PWA (`manifest.webmanifest`/`sw.js` servidos) y persistencia de datos de SQLite tras reiniciar el contenedor del backend.

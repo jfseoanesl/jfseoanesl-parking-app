@@ -1,0 +1,160 @@
+# CI/CD: pruebas en cada push y pull request; publicación de las imágenes de backend y frontend en
+# Docker Hub al hacer push a master o al crear un tag de versión (vX.Y.Z). Ver
+# specs/decisions/ADR-011-ci-cd.md.
+#
+# Secretos requeridos (Settings → Secrets and variables → Actions):
+#   DOCKERHUB_USERNAME  usuario (u organización) de Docker Hub; las imágenes quedan como
+#                       <usuario>/parking-backend y <usuario>/parking-frontend.
+#   DOCKERHUB_TOKEN     Access Token de Docker Hub con permiso Read & Write (no la contraseña).
+
+name: CI/CD
+
+on:
+  push:
+    branches: [master]
+    tags: ['v*.*.*']
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Un push nuevo a la misma rama cancela la corrida anterior (no aplica a tags).
+concurrency:
+  group: ci-cd-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+jobs:
+  backend-sqlite:
+    name: Backend · pruebas (SQLite)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Suite completa
+        run: mvn -B -q test
+      - name: Reportes de pruebas
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-sqlite
+          path: backend/target/surefire-reports
+          retention-days: 7
+
+  backend-mysql:
+    name: Backend · pruebas (MySQL 8.4)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      # Mismo script que se usa en local: levanta un MySQL 8.4 desechable con Docker y corre la
+      # suite completa contra él (ADR-006).
+      - name: Suite completa sobre MySQL
+        run: bash scripts/verify-mysql.sh
+        env:
+          MAVEN_OPTS: -Xmx768m
+      - name: Reportes de pruebas
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-mysql
+          path: backend/target/surefire-reports
+          retention-days: 7
+
+  frontend:
+    name: Frontend · tipos, pruebas y build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - name: Tipos
+        run: npx tsc -b
+      - name: Pruebas unitarias
+        run: npx vitest run
+      - name: Build
+        run: npm run build
+
+  images:
+    name: Imagen ${{ matrix.component }}
+    needs: [backend-sqlite, backend-mysql, frontend]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        component: [backend, frontend]
+    # En pull requests se construye la imagen (valida el Dockerfile) pero no se publica.
+    env:
+      PUBLISH: ${{ github.event_name != 'pull_request' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Login en Docker Hub
+        if: env.PUBLISH == 'true'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # Tags: master → latest y sha-<commit>; vX.Y.Z → X.Y.Z, X.Y y latest; ejecución manual →
+      # sha-<commit>; PR → pr-<n> (sin publicar).
+      - name: Tags y etiquetas OCI
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.DOCKERHUB_USERNAME || 'parking' }}/parking-${{ matrix.component }}
+          tags: |
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v') }}
+            type=sha,prefix=sha-,enable=${{ github.ref == 'refs/heads/master' || github.event_name == 'workflow_dispatch' }}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=ref,event=pr
+          labels: |
+            org.opencontainers.image.title=parking-${{ matrix.component }}
+            org.opencontainers.image.description=Parqueadero - ${{ matrix.component }}
+
+      - name: Build${{ env.PUBLISH == 'true' && ' y push' || '' }}
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.component }}
+          push: ${{ env.PUBLISH == 'true' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          platforms: linux/amd64
+          cache-from: type=gha,scope=${{ matrix.component }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.component }}
+
+      - name: Resumen
+        if: env.PUBLISH == 'true'
+        # Valores por variable de entorno, no interpolados en el script (evita inyección en el shell).
+        env:
+          COMPONENT: ${{ matrix.component }}
+          TAGS: ${{ steps.meta.outputs.tags }}
+        run: |
+          {
+            echo "### parking-${COMPONENT}"
+            echo '```'
+            echo "${TAGS}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

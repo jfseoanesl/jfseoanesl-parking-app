@@ -9,7 +9,7 @@ Las imágenes de backend y frontend se construían solo en local (`docker compos
 Decisiones del usuario:
 - Se publica con cada push a `master` y con los tags `vX.Y.Z`.
 - Antes de publicar deben pasar las pruebas del backend sobre SQLite y sobre MySQL 8.4, y las del frontend.
-- Los nombres de las imágenes son `<usuario>/parking-backend` y `<usuario>/parking-frontend`.
+- Los nombres de las imágenes son `jfseoanesl/parking-backend` y `jfseoanesl/parking-frontend`.
 
 ## Decisión
 
@@ -31,8 +31,9 @@ Decisiones del usuario:
   - `vX.Y.Z`: `X.Y.Z`, `X.Y` y `latest`.
   - Ejecución manual: `sha-<commit>`.
   - Pull requests: solo se construye, sin login ni publicación. Así se validan los Dockerfiles, incluso desde forks sin acceso a secretos.
-- **Credenciales:** los secretos `DOCKERHUB_USERNAME` y `DOCKERHUB_TOKEN`. El token de acceso de Docker Hub se limita a *Read & Write*; nunca se usa la contraseña.
-- **Despliegue desde Docker Hub:** `docker-compose.hub.yml` se combina con `docker-compose.prod.yml`, fija `image: ${DOCKERHUB_NAMESPACE}/parking-*:${IMAGE_TAG}` y `pull_policy: always`, y se usa con `up --no-build`. El frontend sigue esperando que el servicio del backend se llame `backend` (`nginx.conf`).
+- **Cuenta e imágenes:** el usuario y namespace de Docker Hub es `jfseoanesl`, fijado en el workflow (`env.DOCKERHUB_NAMESPACE`). Como no es secreto, aparece legible en los logs. Las imágenes son `jfseoanesl/parking-backend` y `jfseoanesl/parking-frontend`.
+- **Credenciales:** solo el secreto `DOCKERHUB_TOKEN`, un token de acceso de Docker Hub limitado a *Read & Write*. Nunca se usa la contraseña.
+- **Despliegue desde Docker Hub:** `docker-compose.hub.yml` se combina con `docker-compose.prod.yml`, fija `image: ${DOCKERHUB_NAMESPACE:-jfseoanesl}/parking-*:${IMAGE_TAG:-latest}` y `pull_policy: always`, y se usa con `up --no-build`. El frontend sigue esperando que el servicio del backend se llame `backend` (`nginx.conf`).
 
 ## Alternativas descartadas
 

@@ -160,7 +160,7 @@ El flujo `.github/workflows/ci-cd.yml` corre en cada push y pull request a `mast
    - backend sobre SQLite (`mvn test`);
    - backend sobre MySQL 8.4 (`scripts/verify-mysql.sh`);
    - frontend: tipos, Vitest y build.
-2. **Imágenes**, solo si las pruebas pasan: construye `parking-backend` y `parking-frontend`.
+2. **Imágenes**, solo si las pruebas pasan: construye [`jfseoanesl/parking-backend`](https://hub.docker.com/r/jfseoanesl/parking-backend) y [`jfseoanesl/parking-frontend`](https://hub.docker.com/r/jfseoanesl/parking-frontend).
 
 | Evento | Qué publica en Docker Hub |
 |---|---|
@@ -170,13 +170,13 @@ El flujo `.github/workflows/ci-cd.yml` corre en cada push y pull request a `mast
 | Ejecución manual (Actions → CI/CD → Run workflow) | `:sha-<commit>` |
 
 **Configuración, una sola vez**, en GitHub → *Settings → Secrets and variables → Actions*:
-- `DOCKERHUB_USERNAME`: tu usuario de Docker Hub. Las imágenes quedan como `<usuario>/parking-backend` y `<usuario>/parking-frontend`.
-- `DOCKERHUB_TOKEN`: un *Access Token* de Docker Hub (*Account settings → Personal access tokens*) con permiso **Read & Write**. No uses tu contraseña.
+- El usuario y namespace de Docker Hub (`jfseoanesl`) está fijo en el workflow (`env.DOCKERHUB_NAMESPACE`); no es secreto.
+- Secreto `DOCKERHUB_TOKEN`: un *Access Token* de Docker Hub de la cuenta **jfseoanesl** (*Account settings → Personal access tokens*) con permiso **Read & Write**. No uses tu contraseña.
 
 **Desplegar con las imágenes publicadas**, sin compilar en el servidor; usa el mismo `.env` de producción:
 
 ```bash
-export DOCKERHUB_NAMESPACE=<usuario> IMAGE_TAG=1.2.0   # o latest / sha-<commit>
+export IMAGE_TAG=1.2.0   # o latest / sha-<commit>; imágenes jfseoanesl/parking-*
 docker compose -f docker-compose.prod.yml -f docker-compose.hub.yml pull
 docker compose -f docker-compose.prod.yml -f docker-compose.hub.yml up -d --no-build
 ```

@@ -51,6 +51,12 @@ public class ParkingSessionRepositoryAdapter implements ParkingSessionRepository
     }
 
     @Override
+    public Optional<ParkingSession> findActiveBySubscriptionId(String subscriptionId) {
+        return springDataRepository.findFirstBySubscriptionIdAndStatus(subscriptionId, ParkingStatus.EN_PARQUEADERO.name())
+                .map(ParkingSessionRepositoryAdapter::toDomain);
+    }
+
+    @Override
     public Optional<ParkingSession> findById(String id) {
         return springDataRepository.findById(id).map(ParkingSessionRepositoryAdapter::toDomain);
     }
@@ -101,7 +107,8 @@ public class ParkingSessionRepositoryAdapter implements ParkingSessionRepository
                 e.getId(), e.getPlate(), e.getVehicleTypeId(), e.getEntryDateTime(), e.getExitDateTime(),
                 ParkingStatus.valueOf(e.getStatus()), e.getEntryEmployeeId(), e.getExitEmployeeId(),
                 e.getAppliedTariffId(), e.getCalculatedAmount(), e.getNotes(), e.getCancelReason(),
-                e.getCancelledBy(), e.getCancelledAt(), e.getCreatedAt(), e.getUpdatedAt(), e.getEntryNumber());
+                e.getCancelledBy(), e.getCancelledAt(), e.getCreatedAt(), e.getUpdatedAt(), e.getEntryNumber(),
+                e.getSubscriptionId());
     }
 
     static ParkingSessionEntity toEntity(ParkingSession s) {
@@ -109,6 +116,6 @@ public class ParkingSessionRepositoryAdapter implements ParkingSessionRepository
                 s.id(), s.plate(), s.vehicleTypeId(), s.entryDateTime(), s.exitDateTime(),
                 s.status().name(), s.entryEmployeeId(), s.exitEmployeeId(), s.appliedTariffId(),
                 s.calculatedAmount(), s.notes(), s.cancelReason(), s.cancelledBy(), s.cancelledAt(),
-                s.createdAt(), s.updatedAt(), s.entryNumber());
+                s.createdAt(), s.updatedAt(), s.entryNumber(), s.subscriptionId());
     }
 }

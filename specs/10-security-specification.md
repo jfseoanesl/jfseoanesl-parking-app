@@ -32,6 +32,8 @@
 | Anular sesión de parqueo | ✅ | ❌ |
 | Corregir cierre de caja finalizado | ✅ | ❌ |
 | Exportar/importar respaldo completo (RF-073) | ✅ | ❌ |
+| Crear/editar/activar mensualidades (RF-074) | ✅ | ❌ |
+| Consultar mensualidades y cobrar el pago mensual en su caja (RF-077) | ✅ | ✅ |
 
 ## Primer administrador de una instalación nueva
 

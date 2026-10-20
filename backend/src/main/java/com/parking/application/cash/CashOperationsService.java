@@ -36,7 +36,9 @@ public class CashOperationsService {
             Instant paidAt,
             BigDecimal chargedAmount,
             String paymentMethodName,
-            String tariffName
+            String tariffName,
+            /** PARKING = cobro de salida (comprobante /comprobantes/{paymentId}); SUBSCRIPTION = mensualidad. */
+            String kind
     ) {
     }
 
@@ -63,11 +65,17 @@ public class CashOperationsService {
     private final TariffRepository tariffRepository;
     private final UserRepository userRepository;
     private final TimeProvider timeProvider;
+    private final com.parking.domain.repository.SubscriptionPaymentRepository subscriptionPaymentRepository;
+    private final com.parking.domain.repository.SubscriptionRepository subscriptionRepository;
 
     public CashOperationsService(CashSessionRepository cashSessionRepository, PaymentRepository paymentRepository,
                                  ParkingSessionRepository parkingSessionRepository,
                                  PaymentMethodRepository paymentMethodRepository, TariffRepository tariffRepository,
-                                 UserRepository userRepository, TimeProvider timeProvider) {
+                                 UserRepository userRepository, TimeProvider timeProvider,
+                                 com.parking.domain.repository.SubscriptionPaymentRepository subscriptionPaymentRepository,
+                                 com.parking.domain.repository.SubscriptionRepository subscriptionRepository) {
+        this.subscriptionPaymentRepository = subscriptionPaymentRepository;
+        this.subscriptionRepository = subscriptionRepository;
         this.cashSessionRepository = cashSessionRepository;
         this.paymentRepository = paymentRepository;
         this.parkingSessionRepository = parkingSessionRepository;
@@ -87,10 +95,16 @@ public class CashOperationsService {
         if (!actingIsAdmin && !session.employeeId().equals(actingUserId)) {
             throw new AccessDeniedException("Solo el empleado dueño de la caja o un administrador puede ver sus operaciones");
         }
-        return paymentRepository.findByCashSessionId(cashSessionId).stream()
-                .sorted(Comparator.comparing(Payment::paidAt).reversed())
-                .map(this::toOperation)
-                .toList();
+        java.util.List<CashOperation> operations = new java.util.ArrayList<>(
+                paymentRepository.findByCashSessionId(cashSessionId).stream().map(this::toOperation).toList());
+        subscriptionPaymentRepository.findByCashSessionId(cashSessionId).forEach(p -> operations.add(new CashOperation(
+                p.id(), p.operationNumber(), null, p.paidAt(), p.amount(),
+                paymentMethodRepository.findById(p.paymentMethodId()).map(PaymentMethod::name).orElse(null),
+                "Mensualidad - " + subscriptionRepository.findById(p.subscriptionId())
+                        .map(com.parking.domain.model.Subscription::customerName).orElse("cliente"),
+                "SUBSCRIPTION")));
+        operations.sort(Comparator.comparing(CashOperation::paidAt).reversed());
+        return operations;
     }
 
     /** RF-057: cajas cerradas en un rango (fecha de cierre, zona del parqueadero), mas recientes primero. */
@@ -117,6 +131,6 @@ public class CashOperationsService {
         return new CashOperation(payment.id(), payment.operationNumber(),
                 session != null ? session.plate() : null, payment.paidAt(), payment.chargedAmount(),
                 paymentMethodRepository.findById(payment.paymentMethodId()).map(PaymentMethod::name).orElse(null),
-                tariffName);
+                tariffName, "PARKING");
     }
 }

@@ -1,10 +1,10 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, ArrowRightLeft, Banknote, CircleCheck, CreditCard, Info, Printer, Tag, Wallet } from 'lucide-react'
+import { ArrowLeft, ArrowRightLeft, Banknote, CalendarCheck, CircleCheck, CreditCard, Info, LogOut, Printer, Tag, Wallet } from 'lucide-react'
 import { api, ApiError } from '../api/client'
-import type { CheckoutResult, ParkingConfiguration, ParkingSession, PaymentMethod, TariffOption, TariffQuote } from '../api/types'
+import type { CheckoutResult, ParkingConfiguration, ParkingSession, PaymentMethod, SubscriptionCoverage, TariffOption, TariffQuote } from '../api/types'
 import { DEFAULT_RECEIPT_FORMAT, parseReceiptFormat } from '../lib/receiptFormat'
-import { formatCurrency, formatElapsed, formatTime } from '../lib/format'
+import { formatCurrency, formatDate, formatElapsed, formatTime } from '../lib/format'
 import { Button } from '../components/Button'
 import { Alert, LoadingState, Skeleton } from '../components/Feedback'
 import { ChoiceGroup, TextField } from '../components/Form'
@@ -67,7 +67,7 @@ export default function CheckoutPage() {
       .then((q) => {
         setQuote(q)
         const stillApplicable = keepTariffId && q.options.some((o) => o.tariffId === keepTariffId)
-        setTariffId(stillApplicable ? keepTariffId : q.tariffId)
+        setTariffId(stillApplicable ? keepTariffId : (q.tariffId ?? ''))
       })
       .catch((err) => setError(err instanceof ApiError ? err.message : 'No se pudo calcular la tarifa'))
   }
@@ -119,6 +119,10 @@ export default function CheckoutPage() {
 
   if (result) return <Receipt result={result} onDone={() => navigate('/parqueados')} onPrint={printOnExit ? () => navigate(`/comprobantes/${result.paymentId}`) : undefined} />
   if (!session) return <LoadingState />
+  // BR-030: cliente mensual al dia o en gracia -> salida sin cobro ni medio de pago.
+  if (quote?.subscription?.covered) {
+    return <CoveredExit session={session} coverage={quote.subscription} elapsedMinutes={quote.elapsedMinutes} />
+  }
 
   const selectedMethod = paymentMethods.find((m) => m.id === paymentMethodId)
 
@@ -157,6 +161,14 @@ export default function CheckoutPage() {
         </div>
 
         <div className="space-y-6 p-5 sm:p-6">
+          {quote?.subscription && !quote.subscription.covered && (
+            <Alert tone="warning">
+              La mensualidad de {quote.subscription.customerName} está{' '}
+              {quote.subscription.status === 'INACTIVA' ? 'inactiva' : quote.subscription.status === 'SIN_PAGO' ? 'sin pago' : 'vencida'}
+              {quote.subscription.paidUntil && <> (pagada hasta {formatDate(quote.subscription.paidUntil)})</>}. Esta salida se cobra como
+              cliente normal.
+            </Alert>
+          )}
           <div className="rounded-xl bg-neutral-900 p-5 text-white">
             <p className="text-sm text-neutral-400">Valor a cobrar</p>
             {quote ? (
@@ -329,3 +341,88 @@ function Receipt({ result, onDone, onPrint }: { result: CheckoutResult; onDone: 
     </div>
   )
 }
+
+/** RF-076 / BR-030: salida de un cliente mensual cubierto, sin cobro. */
+function CoveredExit({
+  session,
+  coverage,
+  elapsedMinutes,
+}: {
+  session: ParkingSession
+  coverage: SubscriptionCoverage
+  elapsedMinutes: number
+}) {
+  const navigate = useNavigate()
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [done, setDone] = useState(false)
+
+  async function handleExit() {
+    setSubmitting(true)
+    setError(null)
+    try {
+      await api.post(`/parking-sessions/${session.id}/exit-subscription`)
+      setDone(true)
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'No se pudo registrar la salida')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div className="mx-auto max-w-md">
+      <div className="card overflow-hidden text-center">
+        <div className="bg-primary-50 px-6 pt-8 pb-6">
+          {done ? (
+            <CircleCheck aria-hidden className="mx-auto size-14 text-success-600" />
+          ) : (
+            <CalendarCheck aria-hidden className="mx-auto size-14 text-primary-600" />
+          )}
+          <p className="mt-3 text-lg font-semibold text-primary-900">
+            {done ? 'Salida registrada' : 'Cubierto por mensualidad'}
+          </p>
+          <p className="mt-1 text-sm text-neutral-700">
+            {coverage.customerName}
+            {coverage.paidUntil && <> · vigente hasta {formatDate(coverage.paidUntil)}</>}
+          </p>
+          {coverage.status === 'EN_GRACIA' && (
+            <p className="mt-2 text-sm font-medium text-warning-800">En días de gracia: recuerde al cliente pagar la mensualidad.</p>
+          )}
+        </div>
+        <div className="border-t border-dashed border-neutral-300 px-6 py-4 text-left">
+          <div className="mb-2 flex justify-center">
+            <PlateBadge plate={session.plate} />
+          </div>
+          <dl className="divide-y divide-neutral-100">
+            <SummaryRow label="Ingreso" value={formatTime(session.entryDateTime)} />
+            <SummaryRow label="Permanencia" value={formatElapsed(elapsedMinutes)} />
+            <SummaryRow label="Valor a cobrar" value={formatCurrency(0)} />
+          </dl>
+        </div>
+        {error && (
+          <div className="px-4 pb-2">
+            <Alert>{error}</Alert>
+          </div>
+        )}
+        <div className="flex flex-col gap-2 border-t border-neutral-100 p-4">
+          {done ? (
+            <Button size="lg" fullWidth onClick={() => navigate('/parqueados')}>
+              Volver a parqueados
+            </Button>
+          ) : (
+            <>
+              <Button size="lg" fullWidth loading={submitting} icon={<LogOut aria-hidden className="size-5" />} onClick={handleExit}>
+                Registrar salida sin cobro
+              </Button>
+              <Button variant="secondary" fullWidth onClick={() => navigate('/parqueados')}>
+                Cancelar
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+

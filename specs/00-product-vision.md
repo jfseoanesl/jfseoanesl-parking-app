@@ -364,3 +364,10 @@ forma atómica y exige la misma versión de esquema y un administrador activo. V
 `BackupIntegrationTest` (backend 98/98 en SQLite y MySQL), pruebas unitarias del frontend (26/26), E2E 21/21 y una
 transferencia real de la instalación SQLite a una MySQL temporal, con conteos y montos idénticos.
 
+**Mensualidades (2026-10-19):** RF-074 a RF-077, BR-028 a BR-031 (enmienda de BR-020) y ADR-010.
+- El administrador crea mensualidades con el valor y el día de corte pactados y las placas autorizadas.
+- El ingreso de una placa autorizada se reconoce solo; se admite un vehículo a la vez.
+- La salida es sin cobro mientras la mensualidad esté al día o en días de gracia (configurables); vencida, se cobra con las tarifas normales.
+- El pago mensual se cobra en caja: cuenta en el arqueo y los reportes, usa el consecutivo OP y genera comprobante.
+- Migraciones V7 y V7_1 (MySQL).
+- Verificado: backend 106/106 en SQLite y MySQL y frontend 28/28.

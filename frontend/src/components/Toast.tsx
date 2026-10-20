@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from 'react'
 import { CircleAlert, CircleCheck, X } from 'lucide-react'
 
-type ToastTone = 'success' | 'danger'
+type ToastTone = 'success' | 'warning' | 'danger'
 
 interface ToastItem {
   id: number
@@ -49,7 +49,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             {toast.tone === 'success' ? (
               <CircleCheck aria-hidden className="size-5 shrink-0 text-success-500" />
             ) : (
-              <CircleAlert aria-hidden className="size-5 shrink-0 text-danger-500" />
+              <CircleAlert
+                aria-hidden
+                className={`size-5 shrink-0 ${toast.tone === 'warning' ? 'text-warning-500' : 'text-danger-500'}`}
+              />
             )}
             <span className="flex-1">{toast.message}</span>
             <button

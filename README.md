@@ -101,6 +101,15 @@ npm run dev
 
 Copia `.env.example` a `.env`, complétalo, y arranca con `SPRING_PROFILES_ACTIVE=production`. Procedimiento completo y verificado (Fase 12): `specs/decisions/ADR-006-migracion-mysql.md`. Ver también "Despliegue con Docker" abajo para el camino contenedorizado equivalente.
 
+## Mensualidades
+
+Menú **Mensualidades**:
+- El administrador crea cada mensualidad con el cliente, el valor mensual, el día de corte (1–28) y las placas autorizadas.
+- Cualquier usuario con caja abierta cobra el mes con **Registrar pago**. El pago queda en el arqueo y genera un comprobante.
+- Al ingresar una placa autorizada, la app la reconoce como cliente mensual. Mientras la mensualidad esté al día o en días de gracia (Configuración → *Días de gracia de mensualidades*), la salida se registra **sin cobro**.
+
+Detalle: `specs/decisions/ADR-010-mensualidades.md`.
+
 ## Respaldo y traslado de datos a otra instalación
 
 Como administrador, en **Respaldo** (menú lateral):

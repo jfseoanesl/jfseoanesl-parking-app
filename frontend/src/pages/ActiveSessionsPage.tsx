@@ -7,7 +7,7 @@ import { formatElapsed, formatTime } from '../lib/format'
 import { Button } from '../components/Button'
 import { EmptyState, Skeleton } from '../components/Feedback'
 import { PageHeader } from '../components/Layout'
-import { PlateBadge, StatusBadge, VehicleIcon } from '../components/Badges'
+import { Badge, PlateBadge, StatusBadge, VehicleIcon } from '../components/Badges'
 import { SelectField } from '../components/Form'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { useToast } from '../components/Toast'
@@ -172,6 +172,9 @@ export default function ActiveSessionsPage() {
                 <div className="flex flex-wrap items-center justify-between gap-2 md:justify-start">
                   <PlateBadge plate={session.plate} />
                   <StatusBadge status={session.status} />
+                  {session.subscriptionCustomerName && (
+                    <Badge tone="primary" dot={false}>Mensual · {session.subscriptionCustomerName}</Badge>
+                  )}
                 </div>
                 <p className="mt-3 flex items-center gap-2 text-sm text-neutral-700 md:mt-0">
                   <VehicleIcon code={session.vehicleTypeCode} className="size-5 text-neutral-500" />

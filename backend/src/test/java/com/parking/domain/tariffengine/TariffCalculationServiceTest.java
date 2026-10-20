@@ -68,7 +68,7 @@ class TariffCalculationServiceTest {
     private static ParkingSession sessionEnteringAt(Instant entry) {
         return new ParkingSession("s1", "ABC123", VEHICLE_TYPE_ID, entry, null,
                 ParkingStatus.EN_PARQUEADERO, "emp1", null, null, null, null, null, null, null,
-                entry, entry, null);
+                entry, entry, null, null);
     }
 
     private static Tariff tariff(String id, TariffModality modality, long value, LocalTime start, LocalTime end,

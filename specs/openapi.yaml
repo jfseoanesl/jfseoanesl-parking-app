@@ -666,6 +666,136 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/ApiError' }
 
+  # --- Mensualidades (RF-074 a RF-077, ADR-010) ---
+
+  /subscriptions:
+    get:
+      summary: Listar mensualidades con su estado (Administrador y Empleado)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Subscription' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+    post:
+      summary: Crear mensualidad (Administrador)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SubscriptionInput' }
+      responses:
+        '201':
+          description: Creada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Subscription' }
+        '400': { description: Datos inválidos (día de corte fuera de 1–28, valor ≤ 0, sin placas, placa repetida) }
+        '403': { $ref: '#/components/responses/AdminOnly' }
+        '409': { description: Una placa ya pertenece a otra mensualidad (PLATE_IN_OTHER_SUBSCRIPTION) }
+
+  /subscriptions/{id}:
+    parameters:
+      - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+    get:
+      summary: Detalle de una mensualidad
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Subscription' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      summary: Editar mensualidad (Administrador; reemplaza las placas)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SubscriptionInput' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Subscription' }
+        '403': { $ref: '#/components/responses/AdminOnly' }
+
+  /subscriptions/{id}/status:
+    patch:
+      summary: Activar o desactivar (Administrador)
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [active], properties: { active: { type: boolean } } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Subscription' }
+
+  /subscriptions/{id}/payments:
+    parameters:
+      - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+    get:
+      summary: Pagos de la mensualidad (más recientes primero)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/SubscriptionPayment' }
+    post:
+      summary: Cobrar la mensualidad en la caja abierta (BR-031)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [paymentMethodId, amount]
+              properties:
+                paymentMethodId: { type: string, format: uuid }
+                amount: { type: number, description: Debe ser exactamente el valor mensual pactado }
+      responses:
+        '201':
+          description: Pago registrado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SubscriptionPayment' }
+        '409': { description: 'NO_OPEN_CASH_SESSION, CHARGED_AMOUNT_MISMATCH o SUBSCRIPTION_INACTIVE' }
+
+  /subscription-payments/{id}/receipt:
+    get:
+      summary: Datos del comprobante de un pago de mensualidad
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { description: OK }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /parking-sessions/{id}/exit-subscription:
+    post:
+      summary: Salida sin cobro de un cliente mensual al día o en gracia (BR-030)
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      responses:
+        '200':
+          description: Sesión finalizada sin pago
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ParkingSessionDetail' }
+        '409': { description: 'SUBSCRIPTION_NOT_COVERING o SESSION_NOT_ACTIVE' }
+
   # --- Respaldo (RF-073, ADR-009) ---
 
   /admin/backup:
@@ -1284,7 +1414,8 @@ components:
             TARIFF_CREATED, TARIFF_UPDATED, TARIFF_ACTIVATED, TARIFF_DEACTIVATED, TARIFF_OVERRIDDEN,
             USER_CREATED, USER_ACTIVATED, USER_DEACTIVATED, USER_PASSWORD_CHANGED,
             CASH_SESSION_CLOSED, CASH_SESSION_ADJUSTED, PARKING_SESSION_CANCELLED, CONFIGURATION_UPDATED,
-            DATABASE_EXPORTED, DATABASE_IMPORTED.
+            DATABASE_EXPORTED, DATABASE_IMPORTED, SUBSCRIPTION_CREATED, SUBSCRIPTION_UPDATED,
+            SUBSCRIPTION_ACTIVATED, SUBSCRIPTION_DEACTIVATED.
         entityName: { type: string, example: Tariff }
         entityId: { type: string }
         oldValue: { type: string, nullable: true, description: JSON con el estado anterior (si aplica). }
@@ -1364,6 +1495,49 @@ components:
         expectedCash: { type: number, nullable: true }
         reportedCash: { type: number, nullable: true }
         difference: { type: number, nullable: true }
+
+    SubscriptionInput:
+      type: object
+      required: [customerName, monthlyFee, cutOffDay, vehicles]
+      properties:
+        customerName: { type: string }
+        documentId: { type: string, nullable: true }
+        phone: { type: string, nullable: true }
+        monthlyFee: { type: number, exclusiveMinimum: 0 }
+        cutOffDay: { type: integer, minimum: 1, maximum: 28 }
+        notes: { type: string, nullable: true }
+        vehicles:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [plate, vehicleTypeId]
+            properties:
+              plate: { type: string }
+              vehicleTypeId: { type: string, format: uuid }
+
+    Subscription:
+      allOf:
+        - $ref: '#/components/schemas/SubscriptionInput'
+        - type: object
+          properties:
+            id: { type: string, format: uuid }
+            paidUntil: { type: string, format: date, nullable: true }
+            active: { type: boolean }
+            status: { type: string, enum: [AL_DIA, EN_GRACIA, VENCIDA, SIN_PAGO, INACTIVA] }
+            vehicleInsidePlate: { type: string, nullable: true }
+
+    SubscriptionPayment:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        subscriptionId: { type: string, format: uuid }
+        operationNumber: { type: string, example: OP-000123 }
+        amount: { type: number }
+        periodFrom: { type: string, format: date }
+        periodTo: { type: string, format: date }
+        paymentMethodId: { type: string, format: uuid }
+        paidAt: { type: string, format: date-time }
 
     BackupFile:
       type: object

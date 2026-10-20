@@ -15,6 +15,8 @@ import ConfigurationPage from './pages/ConfigurationPage'
 import AuditLogPage from './pages/AuditLogPage'
 import ReportsPage from './pages/ReportsPage'
 import BackupPage from './pages/BackupPage'
+import SubscriptionsPage from './pages/SubscriptionsPage'
+import SubscriptionReceiptPage from './pages/SubscriptionReceiptPage'
 import EntryReceiptPage from './pages/EntryReceiptPage'
 import ReceiptPage from './pages/ReceiptPage'
 import HistoryPage from './pages/HistoryPage'
@@ -44,6 +46,8 @@ function App() {
               <Route path="configuracion" element={<ConfigurationPage />} />
               <Route path="auditoria" element={<AuditLogPage />} />
               <Route path="respaldo" element={<BackupPage />} />
+              <Route path="mensualidades" element={<SubscriptionsPage />} />
+              <Route path="comprobantes-mensualidad/:paymentId" element={<SubscriptionReceiptPage />} />
               <Route path="reportes" element={<ReportsPage />} />
               <Route path="historial" element={<HistoryPage />} />
               <Route path="comprobantes/:paymentId" element={<ReceiptPage />} />

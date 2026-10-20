@@ -27,6 +27,7 @@ export default function ConfigurationPage() {
   const [maxCapacity, setMaxCapacity] = useState('')
   const [timezone, setTimezone] = useState('America/Bogota')
   const [currency, setCurrency] = useState('COP')
+  const [graceDays, setGraceDays] = useState('3')
   const [receiptFormat, setReceiptFormat] = useState<ReceiptFormat>(DEFAULT_RECEIPT_FORMAT)
 
   function load() {
@@ -44,6 +45,7 @@ export default function ConfigurationPage() {
         setMaxCapacity(c.maxCapacity != null ? String(c.maxCapacity) : '')
         setTimezone(c.timezone)
         setCurrency(c.currency)
+        setGraceDays(String(c.subscriptionGraceDays ?? 3))
         setReceiptFormat(parseReceiptFormat(c.receiptFormatJson))
         setVehicleTypes(vt)
         setPaymentMethods(pm)
@@ -69,6 +71,7 @@ export default function ConfigurationPage() {
         currency,
         // Se envía siempre: omitirlo borraba el formato del comprobante en cada guardado (RF-015).
         receiptFormatJson: JSON.stringify(receiptFormat),
+        subscriptionGraceDays: graceDays === '' ? null : Number(graceDays),
       })
       toast('Configuración guardada')
       load()
@@ -107,6 +110,16 @@ export default function ConfigurationPage() {
               <TextField label="Zona horaria" value={timezone} onChange={(e) => setTimezone(e.target.value)} />
               <TextField label="Moneda" value={currency} onChange={(e) => setCurrency(e.target.value)} />
             </div>
+            <TextField
+              label="Días de gracia de mensualidades"
+              type="number"
+              min="0"
+              max="31"
+              className="sm:w-72"
+              value={graceDays}
+              onChange={(e) => setGraceDays(e.target.value)}
+              hint="Días después del corte en que la salida sigue sin cobro."
+            />
 
             <fieldset className="border-t border-neutral-100 pt-4">
               <legend className="section-title">Formato del comprobante</legend>

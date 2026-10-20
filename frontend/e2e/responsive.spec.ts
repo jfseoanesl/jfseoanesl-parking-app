@@ -19,7 +19,7 @@ test.describe('Responsive (solo proyecto mobile)', () => {
     await expect(page).toHaveURL('/')
   })
 
-  const routes = ['/', '/parqueados', '/ingreso', '/caja', '/reportes', '/usuarios', '/tarifas', '/configuracion', '/historial', '/auditoria', '/respaldo']
+  const routes = ['/', '/parqueados', '/ingreso', '/caja', '/reportes', '/usuarios', '/tarifas', '/configuracion', '/historial', '/auditoria', '/respaldo', '/mensualidades']
 
   for (const route of routes) {
     test(`${route} no produce scroll horizontal en viewport movil`, async ({ page }) => {

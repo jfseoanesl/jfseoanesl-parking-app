@@ -25,6 +25,8 @@ public record ParkingSession(
         Instant createdAt,
         Instant updatedAt,
         /** Consecutivo del comprobante de ingreso (ING-000001, BR-027); null en sesiones anteriores a V6. */
-        String entryNumber
+        String entryNumber,
+        /** BR-029: mensualidad que cubre la sesión; null = cliente normal. */
+        String subscriptionId
 ) {
 }

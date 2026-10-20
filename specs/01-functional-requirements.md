@@ -146,6 +146,15 @@
 | RF-067 | El administrador debe poder consultar el log de auditoría con filtros por usuario, entidad, fecha. | Administrador | M | — |
 | RF-068 | El administrador debe poder anular un registro de parqueo dejando trazabilidad (motivo, usuario, fecha/hora). | Administrador | M | BR-020, BR-024, BR-025 |
 
+## Módulo: Mensualidades
+
+| ID | Descripción | Actor | Prioridad | Reglas relacionadas |
+|---|---|---|---|---|
+| RF-074 | El administrador debe poder crear, editar y activar/desactivar mensualidades: cliente, documento, teléfono, valor mensual pactado, día de corte (1–28), notas y una o varias placas autorizadas (cada placa pertenece a una sola mensualidad). Empleados y administradores pueden consultarlas con su estado. | Administrador | S | BR-028, BR-025 |
+| RF-075 | Al registrar el ingreso de una placa autorizada, el sistema debe reconocerla como cliente mensual; si la mensualidad ya tiene otro vehículo dentro, el ingreso es de cliente normal y se avisa. | Empleado, Administrador | S | BR-029 |
+| RF-076 | La salida de un cliente mensual al día o en días de gracia se registra sin cobro ni medio de pago; vencida, sin pago o inactiva, se cobra con las tarifas normales y la pantalla lo advierte. | Empleado, Administrador | S | BR-030, BR-020 |
+| RF-077 | El pago mensual se cobra en la caja abierta con un medio de pago, por el valor pactado; extiende la vigencia hasta el siguiente corte, cuenta en el arqueo y en los reportes, recibe consecutivo `OP-` y genera comprobante imprimible. | Empleado, Administrador | S | BR-031 |
+
 ## Módulo: PWA / Plataforma
 
 | ID | Descripción | Actor | Prioridad | Reglas relacionadas |

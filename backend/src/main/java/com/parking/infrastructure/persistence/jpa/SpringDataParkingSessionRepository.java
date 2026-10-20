@@ -13,6 +13,8 @@ public interface SpringDataParkingSessionRepository extends JpaRepository<Parkin
 
     List<ParkingSessionEntity> findByStatus(String status);
 
+    Optional<ParkingSessionEntity> findFirstBySubscriptionIdAndStatus(String subscriptionId, String status);
+
     List<ParkingSessionEntity> findByStatusAndPlateContainingIgnoreCase(String status, String plateFilter);
 
     // RF-060 a RF-065 (Fase 8). Solo usa parametros Instant (TIMESTAMP) - probadamente fiables

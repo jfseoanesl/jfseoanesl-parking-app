@@ -24,6 +24,10 @@ const ACTION_LABELS: Record<string, string> = {
   TARIFF_OVERRIDDEN: 'Tarifa cambiada al cobrar',
   CONFIGURATION_UPDATED: 'Configuración modificada',
   DATABASE_EXPORTED: 'Respaldo exportado',
+  SUBSCRIPTION_CREATED: 'Mensualidad creada',
+  SUBSCRIPTION_UPDATED: 'Mensualidad modificada',
+  SUBSCRIPTION_ACTIVATED: 'Mensualidad activada',
+  SUBSCRIPTION_DEACTIVATED: 'Mensualidad desactivada',
   DATABASE_IMPORTED: 'Respaldo importado',
 }
 
@@ -34,6 +38,7 @@ const ENTITY_LABELS: Record<string, string> = {
   ParkingSession: 'Sesiones de parqueo',
   Configuration: 'Configuración',
   Database: 'Respaldo',
+  Subscription: 'Mensualidades',
 }
 
 /** Acciones sensibles resaltadas (anulaciones, correcciones de caja). */

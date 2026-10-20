@@ -360,6 +360,16 @@ Formulario de tarifa (crear/editar) en pantalla completa o panel lateral en desk
 └──────────────────────────┘
 ```
 
+### 5.13 Mensualidades (RF-074 a RF-077)
+
+- Lista de tarjetas con buscador por cliente, documento o placa. Cada tarjeta muestra el cliente, un badge de estado (Al día / En gracia / Vencida / Sin pago / Inactiva), el valor y el día de corte, "Pagada hasta", las placas y qué vehículo está dentro.
+- Acciones de todos los usuarios: **Registrar pago** (diálogo con el medio de pago y el valor fijo; al terminar abre el comprobante imprimible) y **Pagos** (historial desplegable).
+- Acciones del administrador: **Nueva mensualidad** y **Editar** (cliente, documento, teléfono, valor, día de corte 1–28, notas y placas con su tipo) y **Activar/Desactivar**.
+- Al registrar el ingreso aparece un toast "Cliente mensual: …" o el aviso de que la mensualidad ya tiene otro vehículo dentro. En Parqueados e Historial se muestra el badge **Mensual · cliente**.
+- En Cobro/salida:
+  - Si la mensualidad está al día o en gracia, se muestra "Cubierto por mensualidad (vigente hasta …)" con el botón **Registrar salida sin cobro**.
+  - Si está vencida, sin pago o inactiva, aparece un aviso y el cobro sigue el flujo normal.
+
 ### 5.12 Respaldo (RF-073)
 
 Dos tarjetas (lado a lado en desktop, apiladas en móvil):

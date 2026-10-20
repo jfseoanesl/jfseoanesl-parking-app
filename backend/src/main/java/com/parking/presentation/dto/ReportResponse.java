@@ -20,12 +20,15 @@ public record ReportResponse(
         Integer peakHour,
         Map<String, BigDecimal> collectedByEmployee,
         long cancelledSessions,
-        BigDecimal cashDifferencesSum
+        BigDecimal cashDifferencesSum,
+        BigDecimal subscriptionCollected,
+        long subscriptionPayments,
+        long subscriberExits
 ) {
     public static ReportResponse from(ReportData d) {
         return new ReportResponse(d.from(), d.to(), d.vehiclesEntered(), d.vehiclesFinalized(),
                 d.enteredByVehicleType(), d.totalCollected(), d.collectedByPaymentMethod(), d.collectedByTariff(),
                 d.averageDurationMinutes(), d.peakHour(), d.collectedByEmployee(), d.cancelledSessions(),
-                d.cashDifferencesSum());
+                d.cashDifferencesSum(), d.subscriptionCollected(), d.subscriptionPayments(), d.subscriberExits());
     }
 }

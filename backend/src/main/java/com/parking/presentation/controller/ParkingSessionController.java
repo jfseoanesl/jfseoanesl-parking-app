@@ -44,11 +44,14 @@ public class ParkingSessionController {
     private final ParkingSessionQueryService parkingSessionQueryService;
     private final ParkingHistoryService parkingHistoryService;
     private final EntryReceiptService entryReceiptService;
+    private final com.parking.application.subscription.SubscriptionService subscriptionService;
 
     public ParkingSessionController(ParkingEntryService parkingEntryService, ParkingExitService parkingExitService,
                                      ParkingSessionQueryService parkingSessionQueryService,
                                      ParkingHistoryService parkingHistoryService,
-                                     EntryReceiptService entryReceiptService) {
+                                     EntryReceiptService entryReceiptService,
+                                     com.parking.application.subscription.SubscriptionService subscriptionService) {
+        this.subscriptionService = subscriptionService;
         this.parkingEntryService = parkingEntryService;
         this.parkingExitService = parkingExitService;
         this.parkingSessionQueryService = parkingSessionQueryService;
@@ -97,14 +100,30 @@ public class ParkingSessionController {
     @ResponseStatus(HttpStatus.CREATED)
     public ParkingSessionResponse register(@Valid @RequestBody ParkingEntryRequest request,
                                             @AuthenticationPrincipal ParkingUserPrincipal principal) {
-        ParkingSession session = parkingEntryService.registerEntry(
+        var result = parkingEntryService.registerEntry(
                 request.plate(), request.vehicleTypeId(), request.notes(), principal.id());
-        return ParkingSessionResponse.from(parkingSessionQueryService.getById(session.id()));
+        return ParkingSessionResponse.from(parkingSessionQueryService.getById(result.session().id()))
+                .withNotice(result.subscriptionNotice());
     }
 
     @PostMapping("/{id}/quote")
     public TariffQuoteResponse quote(@PathVariable String id) {
-        return TariffQuoteResponse.from(parkingExitService.quote(id));
+        ParkingSession session = parkingExitService.activeSession(id);
+        var coverage = TariffQuoteResponse.SubscriptionCoverage.from(
+                subscriptionService.coverageOf(session).orElse(null));
+        // BR-030: cubierta por mensualidad -> no se calcula tarifa (puede no existir una aplicable).
+        if (coverage != null && coverage.covered()) {
+            return TariffQuoteResponse.covered(parkingSessionQueryService.getById(id).elapsedMinutes(), coverage);
+        }
+        return TariffQuoteResponse.from(parkingExitService.quote(id), coverage);
+    }
+
+    /** RF-076 / BR-030: salida de un cliente mensual al dia (sin cobro). */
+    @PostMapping("/{id}/exit-subscription")
+    public ParkingSessionResponse exitSubscription(@PathVariable String id,
+                                                   @AuthenticationPrincipal ParkingUserPrincipal principal) {
+        parkingExitService.exitCoveredBySubscription(id, principal.id());
+        return ParkingSessionResponse.from(parkingSessionQueryService.getById(id));
     }
 
     @PostMapping("/{id}/checkout")

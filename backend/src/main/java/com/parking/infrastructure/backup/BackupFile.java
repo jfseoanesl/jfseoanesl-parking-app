@@ -44,7 +44,11 @@ public record BackupFile(
             List<PaymentMethodEntity> paymentMethods,
             List<ConfigurationEntity> configuration,
             List<TariffEntity> tariffs,
+            /** RF-074 (V7): mensualidades, sus placas autorizadas y sus pagos. */
+            List<com.parking.infrastructure.persistence.entity.SubscriptionEntity> subscriptions,
+            List<com.parking.infrastructure.persistence.entity.SubscriptionVehicleEntity> subscriptionVehicles,
             List<CashSessionEntity> cashSessions,
+            List<com.parking.infrastructure.persistence.entity.SubscriptionPaymentEntity> subscriptionPayments,
             List<ParkingSessionEntity> parkingSessions,
             List<PaymentEntity> payments,
             List<CashMovementEntity> cashMovements,
@@ -60,7 +64,10 @@ public record BackupFile(
             counts.put("paymentMethods", size(paymentMethods));
             counts.put("configuration", size(configuration));
             counts.put("tariffs", size(tariffs));
+            counts.put("subscriptions", size(subscriptions));
+            counts.put("subscriptionVehicles", size(subscriptionVehicles));
             counts.put("cashSessions", size(cashSessions));
+            counts.put("subscriptionPayments", size(subscriptionPayments));
             counts.put("parkingSessions", size(parkingSessions));
             counts.put("payments", size(payments));
             counts.put("cashMovements", size(cashMovements));
@@ -71,7 +78,9 @@ public record BackupFile(
 
         boolean complete() {
             return roles != null && users != null && vehicleTypes != null && paymentMethods != null
-                    && configuration != null && tariffs != null && cashSessions != null && parkingSessions != null
+                    && configuration != null && tariffs != null && subscriptions != null
+                    && subscriptionVehicles != null && cashSessions != null && subscriptionPayments != null
+                    && parkingSessions != null
                     && payments != null && cashMovements != null && auditLogs != null && operationCounters != null;
         }
 

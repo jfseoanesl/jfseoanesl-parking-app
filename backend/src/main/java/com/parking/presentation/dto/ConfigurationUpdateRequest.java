@@ -11,6 +11,8 @@ public record ConfigurationUpdateRequest(
         @PositiveOrZero(message = "la capacidad máxima no puede ser negativa") Integer maxCapacity,
         String timezone,
         String currency,
-        String receiptFormatJson
+        String receiptFormatJson,
+        /** BR-028; null = conservar el valor actual. */
+        Integer subscriptionGraceDays
 ) {
 }

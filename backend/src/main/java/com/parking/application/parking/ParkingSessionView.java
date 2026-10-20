@@ -23,6 +23,8 @@ public record ParkingSessionView(
         BigDecimal calculatedAmount,
         String notes,
         String cancelReason,
-        String entryNumber
+        String entryNumber,
+        String subscriptionId,
+        String subscriptionCustomerName
 ) {
 }

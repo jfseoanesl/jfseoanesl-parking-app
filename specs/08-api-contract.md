@@ -73,6 +73,22 @@ Convenciones: autenticación por cookie de sesión (`10-security-specification.m
 | GET | `/api/admin/backup` | Admin | Descarga el respaldo completo (`parking-respaldo_<yyyy-MM-dd_HHmm>.json`): formato, versión de esquema, conteos y todas las tablas. Audita `DATABASE_EXPORTED`. |
 | POST | `/api/admin/backup/import` | Admin | Cuerpo: el JSON del respaldo. **Reemplaza todos los datos** en una transacción. `400` si el formato no es válido, la versión de esquema no coincide, faltan tablas o no hay un administrador activo (los datos no cambian). Responde `{schemaVersion, counts}`. |
 
+## Mensualidades (RF-074 a RF-077, `decisions/ADR-010-mensualidades.md`)
+
+| Método | Ruta | Rol | Descripción |
+|---|---|---|---|
+| GET | `/api/subscriptions` | Admin, Empleado | Lista con `status` (BR-028), `paidUntil`, placas y `vehicleInsidePlate`. |
+| GET | `/api/subscriptions/{id}` | Admin, Empleado | Detalle. |
+| POST | `/api/subscriptions` | Admin | Crea (`customerName`, `documentId`, `phone`, `monthlyFee`, `cutOffDay` 1–28, `notes`, `vehicles[{plate, vehicleTypeId}]`). `409 PLATE_IN_OTHER_SUBSCRIPTION`. |
+| PUT | `/api/subscriptions/{id}` | Admin | Edita (reemplaza las placas). |
+| PATCH | `/api/subscriptions/{id}/status` | Admin | `{active}`. |
+| POST | `/api/subscriptions/{id}/payments` | Admin, Empleado | Cobro mensual en la caja abierta: `{paymentMethodId, amount}`; `409 NO_OPEN_CASH_SESSION`, `CHARGED_AMOUNT_MISMATCH`, `SUBSCRIPTION_INACTIVE`. Responde el pago con `periodFrom/periodTo` y `operationNumber`. |
+| GET | `/api/subscriptions/{id}/payments` | Admin, Empleado | Historial de pagos. |
+| GET | `/api/subscription-payments/{id}/receipt` | Admin, Empleado | Datos del comprobante de mensualidad. |
+| POST | `/api/parking-sessions/{id}/exit-subscription` | Admin, Empleado | Salida sin cobro de un cliente mensual cubierto (BR-030); `409 SUBSCRIPTION_NOT_COVERING` si no lo está. |
+
+Cambios relacionados: `POST /api/parking-sessions` devuelve `subscriptionId`, `subscriptionCustomerName` y `notice` (BR-029); `POST /quote` devuelve `subscription {id, customerName, status, paidUntil, covered}` y, si está cubierta, `options` vacías y valor 0; `POST /checkout` rechaza `SUBSCRIPTION_COVERED`; `GET /api/reports/summary` agrega `subscriptionCollected`, `subscriptionPayments` y `subscriberExits` (incluidas en `totalCollected` y en los desgloses por medio de pago y empleado); `GET /api/cash-sessions/{id}/payments` agrega `kind` (`PARKING`/`SUBSCRIPTION`); `GET/PUT /api/configuration` agrega `subscriptionGraceDays`.
+
 ## Usuarios
 
 | Método | Ruta | Rol | Descripción |

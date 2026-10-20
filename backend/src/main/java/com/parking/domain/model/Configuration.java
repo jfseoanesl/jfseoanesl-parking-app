@@ -14,6 +14,8 @@ public record Configuration(
         String currency,
         String receiptFormatJson,
         Instant updatedAt,
-        String updatedBy
+        String updatedBy,
+        /** BR-028: días de gracia de una mensualidad después de su fecha de corte. */
+        int subscriptionGraceDays
 ) {
 }

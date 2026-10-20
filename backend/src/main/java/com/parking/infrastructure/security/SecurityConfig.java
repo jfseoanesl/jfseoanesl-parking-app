@@ -95,6 +95,11 @@ public class SecurityConfig {
                         // RF-073: el respaldo se protege también por URL, para que un no administrador
                         // reciba 403 antes de que se lea (o valide) el cuerpo de la petición.
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        // RF-074: crear/editar/activar mensualidades es solo del administrador (el cobro
+                        // POST /api/subscriptions/{id}/payments sigue abierto a empleados).
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/subscriptions").hasRole("ADMIN")
+                        .requestMatchers(org.springframework.http.HttpMethod.PUT, "/api/subscriptions/*").hasRole("ADMIN")
+                        .requestMatchers(org.springframework.http.HttpMethod.PATCH, "/api/subscriptions/*/status").hasRole("ADMIN")
                         .anyRequest().authenticated())
                 .exceptionHandling(eh -> eh
                         .authenticationEntryPoint(authenticationEntryPoint)

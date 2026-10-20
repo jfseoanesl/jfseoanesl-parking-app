@@ -8,7 +8,7 @@ import { Button } from '../components/Button'
 import { Alert, EmptyState, Skeleton } from '../components/Feedback'
 import { SelectField, TextField } from '../components/Form'
 import { PageHeader } from '../components/Layout'
-import { PlateBadge, StatusBadge, VehicleIcon } from '../components/Badges'
+import { Badge, PlateBadge, StatusBadge, VehicleIcon } from '../components/Badges'
 
 function isoDaysAgo(days: number): string {
   const d = new Date()
@@ -127,6 +127,9 @@ export default function HistoryPage() {
               <div className="flex flex-wrap items-center gap-3">
                 <PlateBadge plate={item.plate} size="sm" />
                 <StatusBadge status={item.status} />
+                {item.subscriptionCustomerName && (
+                  <Badge tone="primary" dot={false}>Mensual · {item.subscriptionCustomerName}</Badge>
+                )}
                 <span className="flex items-center gap-1.5 text-sm text-neutral-600">
                   <VehicleIcon code={item.vehicleTypeCode} className="size-4" />
                   {item.vehicleTypeName}

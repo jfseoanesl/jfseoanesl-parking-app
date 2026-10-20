@@ -61,6 +61,8 @@ export default function NewEntryPage() {
         notes: notes || undefined,
       })
       toast(`Ingreso registrado: ${created.plate}`)
+      // BR-029: cliente mensual reconocido, o aviso de que su mensualidad ya tiene otro vehiculo dentro.
+      if (created.notice) toast(created.notice, created.subscriptionId ? 'success' : 'warning')
       setLastEntry(created)
       // Lista para el siguiente ingreso sin navegar (RNF-001): se conserva el tipo elegido.
       setPlate('')

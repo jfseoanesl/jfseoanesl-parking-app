@@ -38,13 +38,16 @@ public class ParkingExitService {
     private final TariffCalculationService tariffCalculationService;
     private final AuditService auditService;
     private final TimeProvider timeProvider;
+    private final com.parking.application.subscription.SubscriptionService subscriptionService;
 
     public ParkingExitService(ParkingSessionRepository parkingSessionRepository, PaymentRepository paymentRepository,
                                PaymentMethodRepository paymentMethodRepository,
                                CashSessionRepository cashSessionRepository,
                                CashMovementRepository cashMovementRepository,
                                TariffCalculationService tariffCalculationService, AuditService auditService,
-                               TimeProvider timeProvider) {
+                               TimeProvider timeProvider,
+                               com.parking.application.subscription.SubscriptionService subscriptionService) {
+        this.subscriptionService = subscriptionService;
         this.parkingSessionRepository = parkingSessionRepository;
         this.paymentRepository = paymentRepository;
         this.paymentMethodRepository = paymentMethodRepository;
@@ -73,6 +76,10 @@ public class ParkingExitService {
     public CheckoutResult checkout(String sessionId, String paymentMethodId, BigDecimal chargedAmount,
                                     String tariffId, String employeeId) {
         ParkingSession session = getActiveSessionOrThrow(sessionId);
+        if (coveredBySubscription(session)) {
+            throw new BusinessRuleViolationException("SUBSCRIPTION_COVERED",
+                    "Esta salida está cubierta por la mensualidad del cliente: registre la salida sin cobro");
+        }
 
         PaymentMethod method = paymentMethodRepository.findById(paymentMethodId)
                 .filter(PaymentMethod::active)
@@ -105,7 +112,7 @@ public class ParkingExitService {
                 session.id(), session.plate(), session.vehicleTypeId(), session.entryDateTime(), exitDateTime,
                 ParkingStatus.FINALIZADO, session.entryEmployeeId(), employeeId, tariffResult.tariffId(),
                 tariffResult.amount(), session.notes(), null, null, null, session.createdAt(), exitDateTime,
-                session.entryNumber());
+                session.entryNumber(), session.subscriptionId());
         ParkingSession savedSession = parkingSessionRepository.save(closedSession);
 
         // Antes: count()+1, que con dos cobros simultaneos en MySQL generaba el mismo numero y el
@@ -129,6 +136,36 @@ public class ParkingExitService {
         return new CheckoutResult(savedSession, tariffResult, savedPayment, method);
     }
 
+    /** BR-030: la sesion pertenece a una mensualidad al dia o en gracia. */
+    public boolean coveredBySubscription(ParkingSession session) {
+        return subscriptionService.coverageOf(session)
+                .map(com.parking.application.subscription.SubscriptionService.Coverage::covered).orElse(false);
+    }
+
+    /** Sesion activa (404/409 si no existe o ya termino), para la cotizacion de la salida. */
+    public ParkingSession activeSession(String sessionId) {
+        return getActiveSessionOrThrow(sessionId);
+    }
+
+    /**
+     * BR-030 / RF-076: salida de un cliente mensual cubierto: sin cobro, sin pago y sin exigir caja
+     * abierta. Enmienda BR-020 (no finalizar sin pago) solo para este caso.
+     */
+    @Transactional
+    public ParkingSession exitCoveredBySubscription(String sessionId, String employeeId) {
+        ParkingSession session = getActiveSessionOrThrow(sessionId);
+        if (!coveredBySubscription(session)) {
+            throw new BusinessRuleViolationException("SUBSCRIPTION_NOT_COVERING",
+                    "La sesión no está cubierta por una mensualidad al día: registre el cobro normal");
+        }
+        Instant exitDateTime = timeProvider.now();
+        return parkingSessionRepository.save(new ParkingSession(
+                session.id(), session.plate(), session.vehicleTypeId(), session.entryDateTime(), exitDateTime,
+                ParkingStatus.FINALIZADO, session.entryEmployeeId(), employeeId, null, BigDecimal.ZERO,
+                session.notes(), null, null, null, session.createdAt(), exitDateTime, session.entryNumber(),
+                session.subscriptionId()));
+    }
+
     /** UC-011 (RF-068). BR-020, BR-024 (soft delete, nunca se borra fisicamente), BR-025 (auditoría). */
     @Transactional
     public ParkingSession cancel(String sessionId, String reason, String adminUserId) {
@@ -146,7 +183,8 @@ public class ParkingExitService {
         ParkingSession cancelled = new ParkingSession(session.id(), session.plate(), session.vehicleTypeId(),
                 session.entryDateTime(), session.exitDateTime(), ParkingStatus.ANULADO, session.entryEmployeeId(),
                 session.exitEmployeeId(), session.appliedTariffId(), session.calculatedAmount(), session.notes(),
-                reason, adminUserId, now, session.createdAt(), now, session.entryNumber());
+                reason, adminUserId, now, session.createdAt(), now, session.entryNumber(),
+                session.subscriptionId());
         ParkingSession saved = parkingSessionRepository.save(cancelled);
 
         auditService.record(adminUserId, "PARKING_SESSION_CANCELLED", "ParkingSession", sessionId,

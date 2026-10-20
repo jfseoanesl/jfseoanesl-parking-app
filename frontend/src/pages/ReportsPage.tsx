@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Ban, Banknote, CircleArrowDown, CircleCheck, Clock, FileSpreadsheet, FileText, Sheet, Scale, TrendingUp } from 'lucide-react'
+import { Ban, Banknote, CalendarCheck, CircleArrowDown, CircleCheck, Clock, FileSpreadsheet, FileText, Sheet, Scale, TrendingUp } from 'lucide-react'
 import { api, ApiError } from '../api/client'
 import type { Report } from '../api/types'
 import { formatCurrency, formatDate, formatElapsed, localIsoDate } from '../lib/format'
@@ -173,6 +173,19 @@ export default function ReportsPage() {
                 value={formatCurrency(report.cashDifferencesSum)}
                 icon={<Scale aria-hidden className="size-5" />}
                 tone={report.cashDifferencesSum === 0 ? 'neutral' : report.cashDifferencesSum < 0 ? 'danger' : 'warning'}
+              />
+              {/* BR-031 / BR-030: incluidas en el total recaudado. */}
+              <StatCard
+                label={`Mensualidades (${report.subscriptionPayments})`}
+                value={formatCurrency(report.subscriptionCollected)}
+                icon={<CalendarCheck aria-hidden className="size-5" />}
+                tone="neutral"
+              />
+              <StatCard
+                label="Salidas de clientes mensuales"
+                value={report.subscriberExits}
+                icon={<CalendarCheck aria-hidden className="size-5" />}
+                tone="neutral"
               />
             </div>
 

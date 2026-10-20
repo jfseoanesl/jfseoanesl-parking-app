@@ -1,32 +1,36 @@
-# React + TypeScript + Vite
+# Parqueadero — Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+PWA en React 19 + TypeScript + Vite 6 + Tailwind CSS 4. La documentación general del proyecto (funcionalidades, despliegue, CI/CD) está en el [README principal](../README.md).
 
-Currently, two official plugins are available:
+## Comandos
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+| Comando | Qué hace |
+|---|---|
+| `npm install` | Instala las dependencias (Node 22) |
+| `npm run dev` | Servidor de desarrollo en http://localhost:5173; reenvía `/api/**` al backend en `:8080` |
+| `npm run build` | Build de producción en `dist/`, con el service worker de la PWA (Workbox) |
+| `npm run test` | Pruebas unitarias y de componentes (Vitest + Testing Library) |
+| `npx tsc -b` | Verificación de tipos |
+| `npm run test:e2e` | E2E y responsive con Playwright (desktop y Pixel 7). Requiere backend y frontend corriendo |
 
-## React Compiler
+Variables de entorno de los E2E:
+- `E2E_BASE_URL`: otro stack, por ejemplo `http://localhost:8081` (Docker).
+- `E2E_ADMIN_USERNAME` / `E2E_ADMIN_PASSWORD`: administrador distinto de `admin/admin123`.
+- `E2E_BROWSER_CHANNEL=chrome`: usa el Chrome instalado en lugar del Chromium de Playwright.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Estructura
 
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```text
+src/
+├── api/          Cliente HTTP (sesión + CSRF) y tipos de la API
+├── auth/         Contexto de autenticación
+├── components/   Componentes reutilizables (Button, Card, Badges, ConfirmDialog, Toast, ReceiptLayout…)
+│   └── reports/  Reporte de mensualidades
+├── layout/       Shell, barra lateral, barra inferior móvil, navegación por rol
+├── lib/          Utilidades (formato, períodos, mensualidades, respaldo…) con sus pruebas
+└── pages/        Pantallas
+e2e/              Pruebas Playwright
+nginx.conf        Servidor y proxy de /api en la imagen Docker
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Diseño y navegación: [`specs/09-ux-specification.md`](../specs/09-ux-specification.md).

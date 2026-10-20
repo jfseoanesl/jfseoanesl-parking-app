@@ -1,27 +1,159 @@
-# Parqueadero — PWA de gestión de parqueadero (Fase 12: Preparación MySQL)
+# Parqueadero
 
-Ver `/specs` para la especificación completa (SDD). Este README cubre solo cómo ejecutar lo entregado hasta ahora: autenticación, estructura del backend/frontend y PWA base.
+Aplicación web progresiva (PWA) para administrar un parqueadero: ingreso y salida de vehículos, cobro con tarifas configurables, caja con arqueo, mensualidades, reportes, auditoría y respaldo. Funciona en escritorio y en celular, y se puede instalar como app.
 
-## Backend (Java 21 + Spring Boot 4.1.1)
+[![CI/CD](https://github.com/jfseoanesl/jfseoanesl-parking-app/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/jfseoanesl/jfseoanesl-parking-app/actions/workflows/ci-cd.yml)
+[![Docker Hub backend](https://img.shields.io/docker/v/jfseoanesl/parking-backend?label=parking-backend&logo=docker)](https://hub.docker.com/r/jfseoanesl/parking-backend)
+[![Docker Hub frontend](https://img.shields.io/docker/v/jfseoanesl/parking-frontend?label=parking-frontend&logo=docker)](https://hub.docker.com/r/jfseoanesl/parking-frontend)
+
+El proyecto se desarrolló con *Spec-Driven Development*. La especificación completa (requisitos, reglas de negocio, casos de uso, modelo de datos, API, UX, seguridad y decisiones de arquitectura) está en [`specs/`](specs/).
+
+---
+
+## Contenido
+
+- [Funcionalidades](#funcionalidades)
+- [Tecnologías](#tecnologías)
+- [Inicio rápido con Docker](#inicio-rápido-con-docker)
+- [Producción](#producción)
+- [Desarrollo local](#desarrollo-local)
+- [Pruebas](#pruebas)
+- [CI/CD](#cicd-github-actions--docker-hub)
+- [Configuración](#configuración-variables-de-entorno)
+- [Seguridad](#seguridad)
+- [Estructura del repositorio](#estructura-del-repositorio)
+- [Documentación](#documentación)
+
+---
+
+## Funcionalidades
+
+**Operación diaria (empleado y administrador)**
+- **Ingreso de vehículos:** la placa se normaliza al escribir (mayúsculas, sin espacios) y no puede haber dos sesiones activas con la misma placa. Cada ingreso recibe un consecutivo **`ING-000001`** y se puede imprimir un **comprobante de ingreso** para el cliente.
+- **Vehículos parqueados:** búsqueda por placa, filtro por tipo de vehículo y orden por hora de ingreso o tiempo de permanencia.
+- **Salida y cobro:**
+  - el valor lo calcula el motor de tarifas;
+  - se puede elegir una **tarifa alterna aplicable**, y ese cambio queda auditado;
+  - el pago queda registrado con un consecutivo **`OP-000001`** y un comprobante imprimible.
+- **Caja:**
+  - apertura con saldo inicial y operaciones del turno;
+  - cierre con **arqueo**: efectivo esperado contra efectivo contado, con la diferencia. Solo el efectivo cuenta como físico.
+- **Mensualidades:**
+  - cada cliente mensual tiene un valor y un día de corte pactados y **placas autorizadas**; solo una puede estar dentro a la vez;
+  - el ingreso de una placa autorizada se reconoce automáticamente;
+  - la salida es **sin cobro** mientras la mensualidad esté al día o en días de gracia; vencida, se cobra con la tarifa normal y la app lo advierte;
+  - el pago mensual se cobra en caja y genera comprobante.
+
+**Administración**
+- **Dashboard:** ocupación frente a capacidad, ingresos, salidas y **recaudo de hoy** (incluye mensualidades), cajas abiertas y últimos movimientos.
+- **Tarifas:**
+  - por tiempo (fracción y redondeo), mañana, tarde o día completo, con tolerancia, tiempo mínimo, vigencia y prioridad;
+  - cada cambio se audita con el valor anterior y el nuevo.
+- **Usuarios** (administrador y empleado): alta, activación, cambio de contraseña propia y de otros.
+- **Configuración:**
+  - datos del parqueadero, capacidad, zona horaria y moneda;
+  - formato del comprobante y si se ofrece imprimir al ingreso y/o a la salida;
+  - días de gracia de las mensualidades;
+  - catálogos de tipos de vehículo y medios de pago.
+- **Historial** de sesiones con filtros por fecha, placa, estado y empleado, y reimpresión de comprobantes.
+- **Correcciones de caja** sobre cierres ya finalizados (con motivo, auditadas) y **anulación** de ingresos (con motivo, auditada).
+- **Reportes:**
+  - **General:** diario, semanal, mensual o por rango. Vehículos ingresados, finalizados y anulados; recaudo por medio de pago, tarifa y empleado; duración promedio; hora pico; diferencias de caja.
+  - **Mensualidades:** estado de cartera con **días de mora**, detalle de pagos y cartera vencida estimada. Filtros por período, varios estados a la vez y cliente/documento/placa.
+  - Ambos se exportan a **Excel, PDF y CSV**.
+- **Auditoría** de cambios administrativos y operaciones sensibles, con filtros por entidad, usuario y fechas.
+- **Respaldo:**
+  - exporta toda la base de datos a un **JSON portable**;
+  - se importa en otra instalación con la misma versión, incluso de SQLite a MySQL;
+  - la importación es atómica y reemplaza todos los datos.
+
+**Plataforma**
+- **PWA instalable**, con la interfaz disponible ante pérdidas momentáneas de conexión. La API nunca se cachea.
+- **Diseño responsive:** barra lateral en escritorio y barra inferior en móvil.
+- **Dos motores de base de datos con el mismo código:** SQLite (desarrollo o una sola sede) y MySQL 8.4 (producción).
+
+## Tecnologías
+
+| Capa | Tecnología |
+|---|---|
+| Backend | Java 21, Spring Boot 4.1.1 (Web MVC, Security, Data JPA), Flyway, Hibernate; Apache POI y OpenPDF para exportar |
+| Base de datos | SQLite (desarrollo, pruebas) · MySQL 8.4 (producción) |
+| Frontend | React 19, TypeScript, Vite 6, Tailwind CSS 4, React Router 7, Lucide, vite-plugin-pwa (Workbox) |
+| Pruebas | JUnit 5 + MockMvc, Vitest + Testing Library, Playwright (E2E y responsive) |
+| Contenedores | Docker multi-etapa: backend en JRE 21 Alpine; frontend en nginx 1.27 Alpine, que también hace de proxy de `/api` |
+| CI/CD | GitHub Actions → Docker Hub |
+
+Arquitectura del backend por capas (dominio, aplicación, infraestructura y presentación), con puertos de repositorio. Ver [`specs/06-architecture.md`](specs/06-architecture.md).
+
+## Inicio rápido con Docker
+
+Requiere Docker y Docker Compose.
 
 ```bash
-cd backend
-mvn spring-boot:run
+docker compose up --build -d
 ```
 
-- Perfil por defecto: `development` (SQLite en archivo `backend/data/parking.db`, se crea solo).
-- Migraciones (Flyway) y datos semilla se aplican automáticamente al arrancar.
-- Health check: `GET http://localhost:8080/actuator/health`
-- Pruebas: `mvn test` (usa SQLite en memoria, perfil `test`).
+- App: **http://localhost:8081**
+- Backend (health): http://localhost:18080/actuator/health
 
-Usuarios de prueba (**solo desarrollo, nunca usar en producción** — prompt.md §33):
+Este stack usa SQLite. Los datos se guardan en el volumen `parking_backend_data` y se conservan con `docker compose down` siempre que no se use `-v`.
+
+Usuarios de prueba, **solo para desarrollo** (nunca en producción):
 
 | Usuario | Contraseña | Rol |
 |---|---|---|
 | `admin` | `admin123` | Administrador |
 | `empleado` | `empleado123` | Empleado |
 
-## Frontend (React + TypeScript + Vite + Tailwind, PWA)
+## Producción
+
+El stack de producción usa MySQL 8.4, no carga datos ni credenciales de prueba y puede correr junto al de desarrollo, porque usa otros puertos y otro nombre de proyecto.
+
+```bash
+cp .env.example .env   # completar DB_*, CORS_ALLOWED_ORIGINS y PARKING_BOOTSTRAP_ADMIN_*
+docker compose -f docker-compose.prod.yml up --build -d
+```
+
+- App: **http://localhost:8091**
+- Backend (health): http://localhost:18090/actuator/health
+- MySQL: `localhost:13306`
+
+**Primer arranque:**
+1. Los datos de referencia (roles, tipos de vehículo, medios de pago y configuración inicial) los crea una migración.
+2. El **primer administrador** se crea a partir de `PARKING_BOOTSTRAP_ADMIN_USERNAME` y `PARKING_BOOTSTRAP_ADMIN_PASSWORD` (mínimo 8 caracteres).
+3. Después del primer arranque, **quita la contraseña del `.env`** y cámbiala desde la aplicación.
+4. Crea las tarifas y completa la configuración.
+
+Ver [ADR-007](specs/decisions/ADR-007-arranque-produccion.md).
+
+**Desplegar con las imágenes de Docker Hub**, sin compilar en el servidor. Se usa el mismo `.env`:
+
+```bash
+export IMAGE_TAG=latest   # o una versión (1.2.0) o un commit (sha-<commit>)
+docker compose -f docker-compose.prod.yml -f docker-compose.hub.yml pull
+docker compose -f docker-compose.prod.yml -f docker-compose.hub.yml up -d --no-build
+```
+
+**HTTPS:** al servir la app con HTTPS, define `SESSION_COOKIE_SECURE=true`. HTTPS también es necesario para instalar la PWA en el celular.
+
+**Pasar datos de una instalación a otra** (por ejemplo, de SQLite a MySQL):
+1. En el origen: **Respaldo → Descargar respaldo**.
+2. En el destino: **Respaldo → Importar**, revisar el resumen y confirmar escribiendo `REEMPLAZAR`.
+
+Las dos instalaciones deben tener la misma versión de la aplicación. Ver [ADR-009](specs/decisions/ADR-009-respaldo-base-de-datos.md).
+
+## Desarrollo local
+
+**Backend** (requiere Java 21 y Maven):
+
+```bash
+cd backend
+mvn spring-boot:run
+```
+
+Perfil `development`: SQLite en `backend/data/parking.db` (se crea solo). Las migraciones y los datos de prueba se aplican al arrancar. API en http://localhost:8080.
+
+**Frontend** (requiere Node 22):
 
 ```bash
 cd frontend
@@ -29,158 +161,116 @@ npm install
 npm run dev
 ```
 
-- Abre `http://localhost:5173`. El servidor de desarrollo reenvía `/api/**` al backend en `http://localhost:8080` (mismo origen, sin problemas de CORS/cookies).
-- `npm run build` genera el bundle de producción e incluye el service worker (Workbox).
-- Pruebas unitarias/componentes: `npm run test` (Vitest + Testing Library).
-- Pruebas E2E/responsive (requieren backend y frontend corriendo, y `npx playwright install chromium` una vez): `npm run test:e2e` (Playwright). Inician sesión como `admin/admin123`. Contra el stack de producción (MySQL, sin datos de prueba), primero crear al menos una tarifa para automóviles con el administrador inicial y luego:
-  ```bash
-  E2E_BASE_URL=http://localhost:8091 E2E_ADMIN_USERNAME=<admin inicial> E2E_ADMIN_PASSWORD=<clave> npm run test:e2e
-  ```
-  `E2E_BROWSER_CHANNEL=chrome` usa el Chrome instalado en lugar del Chromium de Playwright.
+App en http://localhost:5173. El servidor de desarrollo reenvía `/api/**` al backend en el puerto 8080, en el mismo origen, así que no hay problemas de CORS ni de cookies.
 
-## Qué incluye esta entrega
+## Pruebas
 
-**Fase 4 — Foundation:**
-- Autenticación por sesión (cookie `httpOnly` + CSRF) — UC-001, `decisions/ADR-004-autenticacion.md`.
-- RBAC base (roles ADMIN/EMPLOYEE) con `@PreAuthorize`.
-- Persistencia SQLite con Flyway (`backend/src/main/resources/db/migration`), esquema completo de `07-data-model.md`, preparado para migrar a MySQL sin tocar el dominio.
-- Manejo centralizado de errores y logging (sin datos sensibles).
-- PWA instalable (manifest + service worker) con estrategia cache-first solo para el shell estático.
-- Estructura de navegación y design system (Tailwind) de `09-ux-specification.md`.
+| Qué | Comando | Estado actual |
+|---|---|---|
+| Backend sobre SQLite | `cd backend && mvn test` | 109 pruebas |
+| Backend sobre MySQL 8.4 (Docker) | `bash scripts/verify-mysql.sh` | 109 pruebas |
+| Frontend (unitarias y componentes) | `cd frontend && npm run test` | 30 pruebas |
+| Frontend (tipos y build) | `cd frontend && npx tsc -b && npm run build` | — |
+| E2E y responsive (desktop + Pixel 7) | `cd frontend && npm run test:e2e` | 24 escenarios |
 
-**Fase 5 — Operación principal:**
-- Nuevo ingreso, vehículos parqueados (búsqueda), salida y cobro atómico, comprobante de pago.
-- Motor de tarifas (Strategy + Factory + resolución por prioridad) con 25 pruebas de borde: tolerancia, fracciones/redondeo, franjas AM/PM (incl. cruce de medianoche), "todo el día", empates de prioridad y permanencias mayores a 24h.
-- Apertura de caja (dependencia técnica mínima para poder cobrar).
-- Ver `05-business-rules.md` y `decisions/ADR-005-notas-modularizacion-spring-boot-4.md` para las reglas de cálculo precisas y hallazgos técnicos del stack.
-
-**Fase 6 — Caja:**
-- Cierre de caja con arqueo (efectivo esperado vs. reportado, diferencia) — solo el efectivo cuenta como físico, ver BR-023.1.
-- Corrección administrativa de un cierre ya finalizado, con motivo obligatorio y registro de auditoría (RF-057).
-- Pantalla de Caja en el frontend (abrir / resumen en vivo / cerrar).
-
-**Fase 7 — Administración:**
-- Usuarios: alta, activar/desactivar, cambio de contraseña (propio y por administrador).
-- Tarifas: alta/edición/activación con validación por modalidad (RF-021) y auditoría.
-- Configuración del parqueadero + catálogos de tipos de vehículo y medios de pago.
-- Auditoría: consulta filtrable por entidad; anulación administrativa de una sesión de parqueo (UC-011).
-- Pantallas de Usuarios, Tarifas, Configuración y Auditoría en el frontend.
-
-**Fase 8 — Reportes:**
-- Reportes diario/semanal/mensual/rango personalizado: vehículos ingresados/finalizados/anulados, recaudo total y por tipo de vehículo/medio de pago/tarifa/empleado, duración promedio, hora de mayor movimiento, diferencias de caja del período.
-- Dashboard del Administrador (reemplaza el Home placeholder): ocupación vs. capacidad, ingresos/salidas/recaudo de hoy, cajas abiertas, últimos movimientos — se refresca cada 30s.
-- Verificado end-to-end en navegador real: apertura de caja → ingreso → cobro → cierre de caja, con Dashboard y Reportes reflejando la actividad en cada paso.
-
-**Fase 9 — PWA y UX (validación):**
-- Manifest e instalación verificados en el navegador (iconos 192/512/maskable, `display: standalone`, service worker activo controlando la página).
-- Cache del shell estático confirmada (Workbox precache, recargas servidas sin red); `/api/**` sigue sin cachear (BR-019).
-- Corrección: aviso claro de "sin conexión" ante fallos de red (antes cada pantalla mostraba su error genérico) — `frontend/src/api/client.ts`.
-- Corrección: `<html lang="es">` (antes `en`) para una app enteramente en español.
-- Responsive validado por revisión de código (sin anchos fijos ni tablas, contenedores fluidos, `Sidebar`/`BottomNav` mobile-first); verificado después en viewport móvil real por las pruebas E2E del proyecto `mobile` (`e2e/responsive.spec.ts`, incluye Historial y Auditoría).
-
-**Fase 10 — QA:**
-- Backend: 49 pruebas (43 previas + `SecurityIntegrationTest`, nueva — RBAC, CSRF, hash de contraseñas, no-fuga de errores internos), todas en verde.
-- Frontend: primer tooling de pruebas del proyecto (Vitest + Testing Library) — 16 pruebas unitarias/componentes, todas en verde.
-- E2E y responsive: suite de Playwright escrita y type-checada (`frontend/e2e/`), **no ejecutada** en la sesión de desarrollo por una restricción de red del entorno (bloqueo al descargar el binario de Chromium) — ver detalle en `specs/00-product-vision.md` Fase 10. Lista para correr con `npm run test:e2e` en cuanto haya acceso de red (o en CI).
-
-**Revisión de seguridad OWASP (2026-09-29):** límite de intentos de login (5 fallos → 15 min de bloqueo), rotación de sesión al iniciar sesión, revocación inmediata de la sesión al desactivar un usuario, cambio de la propia contraseña con la actual, cabeceras de seguridad (CSP estricta) en nginx, cookies `SameSite=Lax`, registro de intentos fallidos y dependencias parcheadas. Al desplegar con HTTPS, definir `SESSION_COOKIE_SECURE=true`. Ver `specs/10-security-specification.md`.
-
-**Mejoras posteriores a la Fase 12 (2026-09-29):**
-- **Exportación de reportes a Excel y PDF** (RF-063): botones "Excel" y "PDF" en Reportes; exportan el período que se está viendo, con las mismas cifras que la pantalla. Se generan en el servidor (Apache POI y OpenPDF). Ver `specs/decisions/ADR-008-exportacion-reportes.md`.
-- **Auditoría de tarifas completa:** al editar una tarifa se guarda el valor anterior y el nuevo de todos los campos que afectan el cálculo, incluido el horario.
-- La sección "Tarifa" del cobro se muestra siempre (con una sola tarifa aplicable, fija y con la razón).
-
-**Rediseño UI/UX (previo a la Fase 12):**
-- Identidad visual nueva (ver `specs/09-ux-specification.md` §3.4): placa estilo colombiano como elemento principal, íconos SVG (Lucide) en lugar de emojis, tipografía Fira empaquetada localmente, barra lateral oscura y barra inferior móvil con íconos.
-- Componentes reutilizables de §4 en `frontend/src/components/`, incluidos `ConfirmDialog` (cobro y cierre de caja) y `Toast` (ingreso, tarifas, usuarios, configuración).
-- Mejoras de flujo: accesos rápidos en el inicio del empleado; normalización de placa en vivo (BR-002); ingreso listo para el siguiente vehículo sin navegar; diferencia de arqueo calculada mientras se escribe el conteo; tabla en escritorio y tarjetas en móvil para Parqueados; desgloses de reportes en barras; detalle de valor anterior/nuevo en Auditoría.
-- Correcciones encontradas al verificar: el proxy de nginx rechazaba el login desde el navegador (403 CORS, `frontend/nginx.conf`); SQLite devolvía 500 con escrituras concurrentes (`application-development.yml`: `transaction_mode=IMMEDIATE`, `busy_timeout`, WAL); una mutación enviada antes de existir la cookie CSRF salía sin token (`frontend/src/api/client.ts`).
-- Verificado: 17 pruebas unitarias del frontend, 49 del backend (el total de "53" reportado originalmente estaba inflado por reportes de Surefire viejos; hoy son 57, ver Fase 12) y la suite E2E de Playwright (12/12) contra el stack de desarrollo y el de Docker. BR-008.1 (tarifa alterna al cobrar) y la validación del valor cobrado se agregaron después, ver `specs/05-business-rules.md`.
-
-## Producción (MySQL)
-
-Copia `.env.example` a `.env`, complétalo, y arranca con `SPRING_PROFILES_ACTIVE=production`. Procedimiento completo y verificado (Fase 12): `specs/decisions/ADR-006-migracion-mysql.md`. Ver también "Despliegue con Docker" abajo para el camino contenedorizado equivalente.
-
-## Mensualidades
-
-Menú **Mensualidades**:
-- El administrador crea cada mensualidad con el cliente, el valor mensual, el día de corte (1–28) y las placas autorizadas.
-- Cualquier usuario con caja abierta cobra el mes con **Registrar pago**. El pago queda en el arqueo y genera un comprobante.
-- Al ingresar una placa autorizada, la app la reconoce como cliente mensual. Mientras la mensualidad esté al día o en días de gracia (Configuración → *Días de gracia de mensualidades*), la salida se registra **sin cobro**.
-
-Detalle: `specs/decisions/ADR-010-mensualidades.md`.
-
-## Respaldo y traslado de datos a otra instalación
-
-Como administrador, en **Respaldo** (menú lateral):
-1. **Descargar respaldo**: genera `parking-respaldo_<fecha>.json` con todos los datos. Contiene usuarios, cobros y auditoría, así que hay que guardarlo en un lugar seguro.
-2. En la otra instalación, que debe tener la **misma versión** de la aplicación (puede ser SQLite o MySQL), entra como administrador, ve a **Respaldo → Importar**, elige el archivo, revisa el resumen y confirma escribiendo `REEMPLAZAR`.
-3. Todos los datos de esa instalación se reemplazan. Si algo falla, no cambia nada. Se cierra la sesión y se entra con los usuarios del respaldo.
-
-Detalle técnico: `specs/decisions/ADR-009-respaldo-base-de-datos.md`.
-
-## Despliegue con Docker
-
-Requiere Docker y Docker Compose. Hay dos stacks, uno para cada perfil del backend. Usan puertos y nombres de proyecto distintos (`parking` y `parking-prod`), así que pueden correr a la vez.
-
-**Desarrollo/demo (SQLite, sin configuración adicional):**
-
-```bash
-docker compose up --build
-```
-
-- Frontend (con la PWA servida por nginx, proxy interno de `/api/**` al backend): http://localhost:8081
-- Backend, acceso directo opcional (health check, depuración): http://localhost:18080/actuator/health
-- Los datos de SQLite persisten en el volumen con nombre `parking_backend_data` entre reinicios (`docker compose down` sin `-v`).
-
-**Producción (MySQL):**
-
-```bash
-cp .env.example .env   # editar DB_USER / DB_PASSWORD / CORS_ALLOWED_ORIGINS / PARKING_BOOTSTRAP_ADMIN_*
-docker compose -f docker-compose.prod.yml up --build -d
-```
-
-- Frontend: http://localhost:8091
-- Backend: http://localhost:18090/actuator/health
-- MySQL, acceso directo opcional (ej. para inspección con un cliente): `localhost:13306`
-- Sin datos semilla ni credenciales por defecto (prompt.md §33). Los datos de referencia (roles, tipos de vehículo, medios de pago, configuración inicial) se crean con la migración V4. **El primer administrador** se crea al arrancar: define `PARKING_BOOTSTRAP_ADMIN_USERNAME` y `PARKING_BOOTSTRAP_ADMIN_PASSWORD` (mínimo 8 caracteres) en `.env` antes del primer `up`; después retira la contraseña del `.env` y cámbiala desde la aplicación. Luego crea las tarifas y completa la configuración. Ver `specs/decisions/ADR-007-arranque-produccion.md`.
-- Procedimiento completo del cambio SQLite → MySQL y comprobaciones posteriores: `specs/decisions/ADR-006-migracion-mysql.md` (Fase 12).
-
-**Fase 12 — Preparación MySQL (verificada):**
-- La aplicación funciona sobre MySQL 8.4 **sin cambios en el código Java**: la suite del backend pasa 57/57 en SQLite y en MySQL, y la suite E2E 12/12 contra el stack de producción con MySQL.
-- Arranque de producción resuelto después (ADR-007): datos de referencia (V4) y primer administrador desde el entorno. Suite del backend: 62/62 en ambos motores.
-- Para repetir la verificación del código contra MySQL (requiere Docker): `bash scripts/verify-mysql.sh`.
-- Las diferencias de motor viven en `backend/src/main/resources/db/vendor/{motor}` (Flyway `classpath:db/vendor/{vendor}`). Hoy solo MySQL tiene una (`V3_1`: 18 llaves foráneas que MySQL ignoraba y fechas `DATETIME(6)`).
+- **Pruebas del backend:** comparten una base en memoria y son independientes del orden de ejecución (verificado en orden alfabético, inverso y aleatorio).
+- **E2E:** inician sesión como `admin/admin123` y necesitan el backend y el frontend corriendo.
+  - Contra el stack Docker: `E2E_BASE_URL=http://localhost:8081 npm run test:e2e`.
+  - Con un administrador distinto: `E2E_ADMIN_USERNAME` y `E2E_ADMIN_PASSWORD`.
+  - Para usar el Chrome instalado en lugar del Chromium de Playwright: `E2E_BROWSER_CHANNEL=chrome`.
 
 ## CI/CD (GitHub Actions → Docker Hub)
 
-El flujo `.github/workflows/ci-cd.yml` corre en cada push y pull request a `master`:
+El workflow [`.github/workflows/ci-cd.yml`](.github/workflows/ci-cd.yml) hace dos cosas:
 
-1. **Pruebas**, en paralelo:
-   - backend sobre SQLite (`mvn test`);
-   - backend sobre MySQL 8.4 (`scripts/verify-mysql.sh`);
-   - frontend: tipos, Vitest y build.
-2. **Imágenes**, solo si las pruebas pasan: construye [`jfseoanesl/parking-backend`](https://hub.docker.com/r/jfseoanesl/parking-backend) y [`jfseoanesl/parking-frontend`](https://hub.docker.com/r/jfseoanesl/parking-frontend).
+1. **Pruebas en paralelo:** backend sobre SQLite, backend sobre MySQL 8.4, y frontend (tipos, Vitest y build).
+2. **Imágenes**, solo si todo pasa: [`jfseoanesl/parking-backend`](https://hub.docker.com/r/jfseoanesl/parking-backend) y [`jfseoanesl/parking-frontend`](https://hub.docker.com/r/jfseoanesl/parking-frontend).
 
-| Evento | Qué publica en Docker Hub |
+| Evento | Qué se publica en Docker Hub |
 |---|---|
-| Pull request | Nada (solo construye las imágenes para validar los Dockerfiles) |
+| Pull request a `master` | Nada; solo se construyen las imágenes para validar los Dockerfiles |
 | Push a `master` | `:latest` y `:sha-<commit>` |
-| Tag `vX.Y.Z` (ej. `git tag v1.2.0 && git push origin v1.2.0`) | `:1.2.0`, `:1.2` y `:latest` |
-| Ejecución manual (Actions → CI/CD → Run workflow) | `:sha-<commit>` |
+| Tag `vX.Y.Z` (`git tag v1.2.0 && git push origin v1.2.0`) | `:1.2.0`, `:1.2` y `:latest` |
+| Ejecución manual (Actions → CI/CD → *Run workflow*) | `:sha-<commit>` |
 
-**Configuración, una sola vez**, en GitHub → *Settings → Secrets and variables → Actions*:
-- El usuario y namespace de Docker Hub (`jfseoanesl`) está fijo en el workflow (`env.DOCKERHUB_NAMESPACE`); no es secreto.
-- Secreto `DOCKERHUB_TOKEN`: un *Access Token* de Docker Hub de la cuenta **jfseoanesl** (*Account settings → Personal access tokens*) con permiso **Read & Write**. No uses tu contraseña.
+**Configuración:**
+- El namespace `jfseoanesl` está fijo en el workflow.
+- Solo hace falta el secreto **`DOCKERHUB_TOKEN`**, en *Settings → Secrets and variables → Actions*: un Access Token de Docker Hub con permiso *Read & Write*. Nunca uses la contraseña.
 
-**Desplegar con las imágenes publicadas**, sin compilar en el servidor; usa el mismo `.env` de producción:
+Ver [ADR-011](specs/decisions/ADR-011-ci-cd.md).
 
-```bash
-export IMAGE_TAG=1.2.0   # o latest / sha-<commit>; imágenes jfseoanesl/parking-*
-docker compose -f docker-compose.prod.yml -f docker-compose.hub.yml pull
-docker compose -f docker-compose.prod.yml -f docker-compose.hub.yml up -d --no-build
+## Configuración (variables de entorno)
+
+En desarrollo no se necesita ninguna. En producción van en `.env` (plantilla: [`.env.example`](.env.example)):
+
+| Variable | Uso |
+|---|---|
+| `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` | Conexión a MySQL |
+| `DB_USE_SSL`, `DB_ALLOW_PUBLIC_KEY_RETRIEVAL` | TLS hacia MySQL; la segunda solo cuando no se usa SSL y en una red privada |
+| `PARKING_TIMEZONE` | Zona horaria del parqueadero (por defecto `America/Bogota`) |
+| `CORS_ALLOWED_ORIGINS` | Origen(es) permitidos del frontend |
+| `PARKING_BOOTSTRAP_ADMIN_USERNAME` / `_FULL_NAME` / `_PASSWORD` | Primer administrador; solo se usa si todavía no existe ninguno |
+| `SESSION_COOKIE_SECURE` | `true` cuando la app se sirva con HTTPS |
+| `SPRING_PROFILES_ACTIVE` | `development`, `test` o `production` |
+| `IMAGE_TAG`, `DOCKERHUB_NAMESPACE` | Solo para `docker-compose.hub.yml` (por defecto `latest` y `jfseoanesl`) |
+
+## Seguridad
+
+- **Sesión y CSRF:** sesión con cookie `httpOnly` y `SameSite=Lax`, con protección CSRF de doble envío. El identificador de sesión cambia al iniciar sesión.
+- **Contraseñas e intentos:** contraseñas con BCrypt; 5 intentos fallidos bloquean la cuenta 15 minutos.
+- **Usuarios desactivados:** desactivar a un usuario revoca su sesión de inmediato.
+- **Permisos:** se controlan en el servidor por rol, tanto por método como por URL en las rutas administrativas. La interfaz solo oculta lo que el usuario no puede usar.
+- **Navegador:** cabeceras de seguridad y CSP estricta en nginx.
+- **Errores y exportaciones:** los errores no exponen detalles internos, y los archivos CSV y Excel se protegen contra la inyección de fórmulas.
+- **Auditoría:** se auditan tarifas, configuración, usuarios, anulaciones, cierres y correcciones de caja, mensualidades y respaldos.
+
+Ver [`specs/10-security-specification.md`](specs/10-security-specification.md), que incluye la revisión OWASP Top 10.
+
+## Estructura del repositorio
+
+```text
+├── backend/                 API Spring Boot (Java 21)
+│   └── src/main/resources/db/
+│       ├── migration/       Migraciones Flyway comunes (V1…V7)
+│       ├── seed/            Datos de prueba (solo desarrollo y pruebas)
+│       └── vendor/mysql/    Migraciones exclusivas de MySQL
+├── frontend/                PWA React + Vite (nginx en la imagen Docker)
+│   └── e2e/                 Pruebas Playwright
+├── specs/                   Especificación SDD y decisiones (ADR)
+├── scripts/verify-mysql.sh  Suite del backend contra un MySQL 8.4 desechable
+├── docker-compose.yml       Stack de desarrollo (SQLite, puerto 8081)
+├── docker-compose.prod.yml  Stack de producción (MySQL, puerto 8091)
+├── docker-compose.hub.yml   Producción con imágenes de Docker Hub
+└── .github/workflows/       CI/CD
 ```
 
-Detalle: `specs/decisions/ADR-011-ci-cd.md`.
+## Documentación
 
-Ambos stacks se verificaron manualmente en esta sesión: build de las dos imágenes, arranque con healthchecks en verde, login a través del proxy de nginx (mismo mecanismo de doble envío CSRF que en desarrollo; esa verificación se hizo con curl, sin cabecera `Origin`, y no detectó que el navegador recibía 403 — corregido después en `frontend/nginx.conf`, ver "Rediseño UI/UX"), fallback de rutas de la SPA (`/reportes` sin recargar), PWA (`manifest.webmanifest`/`sw.js` servidos) y persistencia de datos de SQLite tras reiniciar el contenedor del backend.
+| Documento | Contenido |
+|---|---|
+| [`00-product-vision.md`](specs/00-product-vision.md) | Visión, alcance y bitácora de fases y cambios |
+| [`01-functional-requirements.md`](specs/01-functional-requirements.md) | Requisitos funcionales (RF-001 a RF-078) |
+| [`02-non-functional-requirements.md`](specs/02-non-functional-requirements.md) | Requisitos no funcionales |
+| [`03-domain-model.md`](specs/03-domain-model.md) · [`07-data-model.md`](specs/07-data-model.md) | Modelo de dominio y de datos |
+| [`04-use-cases.md`](specs/04-use-cases.md) · [`05-business-rules.md`](specs/05-business-rules.md) | Casos de uso y reglas de negocio |
+| [`06-architecture.md`](specs/06-architecture.md) | Arquitectura |
+| [`08-api-contract.md`](specs/08-api-contract.md) · [`openapi.yaml`](specs/openapi.yaml) | Contrato de la API (OpenAPI 3) |
+| [`09-ux-specification.md`](specs/09-ux-specification.md) | Navegación, pantallas y design system |
+| [`10-security-specification.md`](specs/10-security-specification.md) | Seguridad y revisión OWASP |
+| [`12-traceability-matrix.md`](specs/12-traceability-matrix.md) | Trazabilidad entre requisitos, reglas, código y pruebas |
+
+**Decisiones de arquitectura** ([`specs/decisions/`](specs/decisions/)):
+
+| ADR | Decisión |
+|---|---|
+| [001](specs/decisions/ADR-001-stack-tecnologico.md) | Stack tecnológico |
+| [002](specs/decisions/ADR-002-persistencia-sqlite.md) | Persistencia en SQLite |
+| [003](specs/decisions/ADR-003-motor-tarifario.md) | Motor de tarifas |
+| [004](specs/decisions/ADR-004-autenticacion.md) | Autenticación |
+| [005](specs/decisions/ADR-005-notas-modularizacion-spring-boot-4.md) | Notas de Spring Boot 4 |
+| [006](specs/decisions/ADR-006-migracion-mysql.md) | Migración a MySQL |
+| [007](specs/decisions/ADR-007-arranque-produccion.md) | Arranque de producción |
+| [008](specs/decisions/ADR-008-exportacion-reportes.md) | Exportación de reportes |
+| [009](specs/decisions/ADR-009-respaldo-base-de-datos.md) | Respaldo de la base de datos |
+| [010](specs/decisions/ADR-010-mensualidades.md) | Mensualidades |
+| [011](specs/decisions/ADR-011-ci-cd.md) | CI/CD con GitHub Actions y Docker Hub |

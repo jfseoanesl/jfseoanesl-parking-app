@@ -28,3 +28,13 @@ RF-063 exigía que la arquitectura de reportes soportara exportar a PDF, Excel y
 - Agregar **CSV** requiere solo un valor nuevo en `ReportFormat` y un `ReportExporter` nuevo; el endpoint, el servicio y los botones no cambian.
 - Dependencias nuevas en el backend (POI y OpenPDF): el JAR crece varios MB. Es aceptable para un servidor y no afecta la PWA.
 - Verificado: pruebas de integración que abren el Excel con POI y extraen el texto del PDF con OpenPDF, además de probar el permiso (empleado → 403), el formato inválido y el rango invertido (400). Suite completa 71/71 en SQLite y MySQL. Descarga real desde el navegador; el PDF y el Excel coinciden cifra por cifra con la pantalla.
+
+## Actualización (2026-10-20): reportes de detalle (RF-078)
+
+- `ReportContent` solo modela indicadores y desgloses de 2 columnas. Para reportes con tablas de varias columnas, como el de mensualidades, se agregó `TableReportContent`: título, período, filtros, indicadores y tablas con columnas tipadas (TEXT, MONEY o COUNT).
+- `ReportExporter` tiene un segundo método, `exportTables`, implementado en los mismos tres exportadores:
+  - **XLSX**: hoja "Resumen" y una hoja por tabla, con montos numéricos, autofiltro y encabezado fijo.
+  - **PDF**: A4 apaisado.
+  - **CSV**: una sección por tabla.
+- El texto de las celdas se escribe siempre como texto, sin interpretar fórmulas. CSV mantiene su protección contra inyección de fórmulas.
+

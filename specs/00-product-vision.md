@@ -371,3 +371,11 @@ transferencia real de la instalación SQLite a una MySQL temporal, con conteos y
 - El pago mensual se cobra en caja: cuenta en el arqueo y los reportes, usa el consecutivo OP y genera comprobante.
 - Migraciones V7 y V7_1 (MySQL).
 - Verificado: backend 106/106 en SQLite y MySQL y frontend 28/28.
+
+**Reporte de mensualidades (2026-10-20):** RF-078. Reportes tiene ahora una pestaña **Mensualidades**:
+- Contenido: estado de cartera (con estado y días de mora a hoy), detalle de pagos del período e indicadores (recaudo, conteo por estado, cartera vencida estimada).
+- Filtros: período, varios estados a la vez y cliente/documento/placa.
+- Exportación a Excel (hojas Resumen, Cartera y Pagos), PDF apaisado y CSV.
+- Corrección relacionada: el Dashboard ("Recaudo hoy") ya suma las mensualidades.
+- Verificado: backend 109/109 en SQLite y MySQL, frontend 30/30 y E2E 24/24.
+

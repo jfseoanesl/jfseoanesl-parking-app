@@ -966,6 +966,61 @@ paths:
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/AdminOnly' }
 
+  /reports/subscriptions:
+    get:
+      summary: Reporte de mensualidades (Administrador, RF-078)
+      description: >
+        Estado de cartera (estado BR-028 y días de mora calculados a hoy), pagos cobrados en el
+        período e indicadores. Filtros combinables.
+      parameters:
+        - $ref: '#/components/parameters/ReportFrom'
+        - $ref: '#/components/parameters/ReportTo'
+        - name: status
+          in: query
+          required: false
+          description: Uno o varios separados por coma; vacío = todos.
+          schema: { type: string, example: 'VENCIDA,SIN_PAGO' }
+        - name: q
+          in: query
+          required: false
+          description: Cliente, documento o placa (sin distinguir mayúsculas ni espacios).
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SubscriptionReport' }
+        '400':
+          description: Estado inválido o from posterior a to
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AdminOnly' }
+
+  /reports/subscriptions/export:
+    get:
+      summary: Exportar el reporte de mensualidades (Excel, PDF o CSV)
+      parameters:
+        - $ref: '#/components/parameters/ReportFrom'
+        - $ref: '#/components/parameters/ReportTo'
+        - { name: status, in: query, required: false, schema: { type: string } }
+        - { name: q, in: query, required: false, schema: { type: string } }
+        - { name: format, in: query, required: true, schema: { type: string, enum: [xlsx, pdf, csv] } }
+      responses:
+        '200':
+          description: Archivo reporte-mensualidades_<período>.<ext>
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema: { type: string, format: binary }
+            application/pdf:
+              schema: { type: string, format: binary }
+            text/csv:
+              schema: { type: string, format: binary }
+        '400': { description: Formato o filtros inválidos }
+        '403': { $ref: '#/components/responses/AdminOnly' }
+
   /dashboard:
     get:
       summary: Dashboard del administrador (actividad de hoy)
@@ -1538,6 +1593,51 @@ components:
         periodTo: { type: string, format: date }
         paymentMethodId: { type: string, format: uuid }
         paidAt: { type: string, format: date-time }
+
+    SubscriptionReport:
+      type: object
+      properties:
+        from: { type: string, format: date }
+        to: { type: string, format: date }
+        today: { type: string, format: date, description: Fecha a la que se calculan estado y mora }
+        collected: { type: number }
+        paymentsCount: { type: integer }
+        activeCount: { type: integer }
+        countByStatus: { type: object, additionalProperties: { type: integer } }
+        overdueAmount: { type: number, description: Suma del valor mensual de las VENCIDA y SIN_PAGO }
+        portfolio:
+          type: array
+          items:
+            type: object
+            properties:
+              subscriptionId: { type: string, format: uuid }
+              customerName: { type: string }
+              documentId: { type: string, nullable: true }
+              phone: { type: string, nullable: true }
+              plates: { type: array, items: { type: string } }
+              monthlyFee: { type: number }
+              cutOffDay: { type: integer }
+              paidUntil: { type: string, format: date, nullable: true }
+              status: { type: string, enum: [AL_DIA, EN_GRACIA, VENCIDA, SIN_PAGO, INACTIVA] }
+              daysOverdue: { type: integer, nullable: true }
+              paidInPeriod: { type: number }
+              paymentsInPeriod: { type: integer }
+              vehicleInsidePlate: { type: string, nullable: true }
+        payments:
+          type: array
+          items:
+            type: object
+            properties:
+              paymentId: { type: string, format: uuid }
+              paidAt: { type: string, format: date-time }
+              operationNumber: { type: string }
+              customerName: { type: string }
+              documentId: { type: string, nullable: true }
+              periodFrom: { type: string, format: date }
+              periodTo: { type: string, format: date }
+              amount: { type: number }
+              paymentMethodName: { type: string }
+              employeeName: { type: string }
 
     BackupFile:
       type: object

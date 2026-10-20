@@ -29,8 +29,11 @@ public class ReportController {
 
     private final ReportService reportService;
     private final ReportExportService reportExportService;
+    private final com.parking.application.report.SubscriptionReportService subscriptionReportService;
 
-    public ReportController(ReportService reportService, ReportExportService reportExportService) {
+    public ReportController(ReportService reportService, ReportExportService reportExportService,
+                            com.parking.application.report.SubscriptionReportService subscriptionReportService) {
+        this.subscriptionReportService = subscriptionReportService;
         this.reportService = reportService;
         this.reportExportService = reportExportService;
     }
@@ -65,5 +68,54 @@ public class ReportController {
                 .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
                         .filename(report.filename(), StandardCharsets.UTF_8).build().toString())
                 .body(report.content());
+    }
+
+    // --- RF-078: reporte de mensualidades -------------------------------------------------
+
+    @GetMapping("/subscriptions")
+    public com.parking.application.report.SubscriptionReportService.Report subscriptions(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String q) {
+        return subscriptionReportService.generate(filter(from, to, status, q));
+    }
+
+    @GetMapping("/subscriptions/export")
+    public ResponseEntity<byte[]> exportSubscriptions(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String q,
+            @RequestParam String format,
+            @AuthenticationPrincipal ParkingUserPrincipal principal) {
+        ReportFormat reportFormat = ReportFormat.fromExtension(format)
+                .orElseThrow(() -> new IllegalArgumentException("Formato no soportado: use xlsx, pdf o csv"));
+        ExportedReport report = reportExportService.exportSubscriptions(filter(from, to, status, q), reportFormat,
+                principal.fullName());
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(report.contentType()))
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
+                        .filename(report.filename(), StandardCharsets.UTF_8).build().toString())
+                .body(report.content());
+    }
+
+    /** {@code status}: lista separada por comas (AL_DIA,VENCIDA,...); vacío = todos. */
+    private static com.parking.application.report.SubscriptionReportService.Filter filter(
+            LocalDate from, LocalDate to, String status, String q) {
+        java.util.Set<com.parking.domain.model.SubscriptionStatus> statuses =
+                java.util.EnumSet.noneOf(com.parking.domain.model.SubscriptionStatus.class);
+        if (status != null && !status.isBlank()) {
+            for (String s : status.split(",")) {
+                if (s.isBlank()) continue;
+                try {
+                    statuses.add(com.parking.domain.model.SubscriptionStatus.valueOf(s.trim().toUpperCase()));
+                } catch (IllegalArgumentException e) {
+                    throw new IllegalArgumentException(
+                            "Estado inválido: use AL_DIA, EN_GRACIA, VENCIDA, SIN_PAGO o INACTIVA");
+                }
+            }
+        }
+        return new com.parking.application.report.SubscriptionReportService.Filter(from, to, statuses, q);
     }
 }

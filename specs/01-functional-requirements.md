@@ -154,6 +154,7 @@
 | RF-075 | Al registrar el ingreso de una placa autorizada, el sistema debe reconocerla como cliente mensual; si la mensualidad ya tiene otro vehículo dentro, el ingreso es de cliente normal y se avisa. | Empleado, Administrador | S | BR-029 |
 | RF-076 | La salida de un cliente mensual al día o en días de gracia se registra sin cobro ni medio de pago; vencida, sin pago o inactiva, se cobra con las tarifas normales y la pantalla lo advierte. | Empleado, Administrador | S | BR-030, BR-020 |
 | RF-077 | El pago mensual se cobra en la caja abierta con un medio de pago, por el valor pactado; extiende la vigencia hasta el siguiente corte, cuenta en el arqueo y en los reportes, recibe consecutivo `OP-` y genera comprobante imprimible. | Empleado, Administrador | S | BR-031 |
+| RF-078 | El administrador debe poder consultar y exportar (Excel, PDF, CSV) un reporte de mensualidades con: estado de cartera (cliente, placas, valor, corte, pagada hasta, estado y días de mora a hoy, pagado en el período), detalle de pagos del período (fecha, OP-, período cubierto, valor, medio de pago, quién cobró) e indicadores (recaudo, conteo por estado, cartera vencida estimada); filtrable por rango de fechas, estados (varios) y cliente/documento/placa. | Administrador | S | BR-028, BR-031 |
 
 ## Módulo: PWA / Plataforma
 

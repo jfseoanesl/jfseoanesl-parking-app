@@ -64,6 +64,8 @@ Convenciones: autenticación por cookie de sesión (`10-security-specification.m
 | GET | `/api/dashboard` | Admin | Indicadores de RF-064/RF-065. |
 | GET | `/api/reports/daily?date=` | Admin | Reporte diario. |
 | GET | `/api/reports/summary?from=&to=` | Admin | Reporte semanal/mensual/personalizado (mismo endpoint parametrizado por rango). |
+| GET | `/api/reports/subscriptions?from=&to=&status=AL_DIA,VENCIDA&q=` | Admin | Reporte de mensualidades (RF-078): `portfolio` (cartera con estado y `daysOverdue` a hoy, pagado en el período), `payments` (cobros del período), `collected`, `paymentsCount`, `activeCount`, `countByStatus`, `overdueAmount`. `status` acepta varios separados por coma (vacío = todos); `q` busca por cliente, documento o placa. `400` si un estado es inválido o `from > to`. |
+| GET | `/api/reports/subscriptions/export?…&format=xlsx\|pdf\|csv` | Admin | Mismo reporte, con los mismos filtros, descargado como `reporte-mensualidades_<período>.<ext>`: Excel con hojas Resumen, Cartera y Pagos (números y autofiltro); PDF A4 apaisado; CSV por secciones. |
 | GET | `/api/reports/summary/export?from=&to=&format=xlsx\|pdf\|csv` | Admin | Descarga el mismo reporte en Excel, PDF o CSV (RF-063, `decisions/ADR-008-exportacion-reportes.md`). `Content-Disposition: attachment; filename=reporte-parqueadero_<período>.<ext>`. CSV con `;`, UTF-8 con BOM y protección contra inyección de fórmulas. `400` si el formato no es `xlsx`/`pdf`/`csv` o si `from > to`. |
 
 ## Respaldo (RF-073, `decisions/ADR-009-respaldo-base-de-datos.md`)

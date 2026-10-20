@@ -360,6 +360,15 @@ Formulario de tarifa (crear/editar) en pantalla completa o panel lateral en desk
 └──────────────────────────┘
 ```
 
+### 5.8.1 Reportes → pestaña Mensualidades (RF-078)
+
+- Selector superior **General | Mensualidades**. En la pestaña Mensualidades:
+  - **Filtros en una fila:** período (Diario / Semanal / Mensual / Rango), buscador de cliente, documento o placa, y chips de estado de selección múltiple (`aria-pressed`) con la opción "Todos".
+  - **Exportar:** Excel, PDF y CSV con los filtros activos.
+  - **8 indicadores (`StatCard`):** recaudo (con la cantidad de pagos), activas, al día, en gracia, vencidas, sin pago, inactivas y cartera vencida estimada.
+  - **Estado de cartera:** tabla en desktop y tarjetas en móvil. Muestra primero lo que requiere gestión y resalta la mora en rojo.
+  - **Detalle de pagos:** con enlace al comprobante y total al pie.
+
 ### 5.13 Mensualidades (RF-074 a RF-077)
 
 - Lista de tarjetas con buscador por cliente, documento o placa. Cada tarjeta muestra el cliente, un badge de estado (Al día / En gracia / Vencida / Sin pago / Inactiva), el valor y el día de corte, "Pagada hasta", las placas y qué vehículo está dentro.

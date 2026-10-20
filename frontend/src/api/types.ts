@@ -364,3 +364,46 @@ export interface SubscriptionReceipt {
   employeeName: string | null
   paidAt: string
 }
+
+/** RF-078: reporte de mensualidades (GET /reports/subscriptions). */
+export interface SubscriptionPortfolioRow {
+  subscriptionId: string
+  customerName: string
+  documentId: string | null
+  phone: string | null
+  plates: string[]
+  monthlyFee: number
+  cutOffDay: number
+  paidUntil: string | null
+  status: SubscriptionStatus
+  daysOverdue: number | null
+  paidInPeriod: number
+  paymentsInPeriod: number
+  vehicleInsidePlate: string | null
+}
+
+export interface SubscriptionReportPaymentRow {
+  paymentId: string
+  paidAt: string
+  operationNumber: string
+  customerName: string
+  documentId: string | null
+  periodFrom: string
+  periodTo: string
+  amount: number
+  paymentMethodName: string
+  employeeName: string
+}
+
+export interface SubscriptionReport {
+  from: string
+  to: string
+  today: string
+  collected: number
+  paymentsCount: number
+  activeCount: number
+  countByStatus: Record<SubscriptionStatus, number>
+  overdueAmount: number
+  portfolio: SubscriptionPortfolioRow[]
+  payments: SubscriptionReportPaymentRow[]
+}

@@ -113,6 +113,85 @@ public class PdfReportExporter implements ReportExporter {
         return out.toByteArray();
     }
 
+    /** RF-078: A4 apaisado; encabezado, filtros, indicadores y una tabla por sección. */
+    @Override
+    public byte[] exportTables(com.parking.application.report.export.TableReportContent content, ReportHeader header) {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        Document document = new Document(PageSize.A4.rotate(), 32, 32, 32, 32);
+        try {
+            PdfWriter.getInstance(document, out);
+            document.addTitle(content.title() + " " + header.parkingName());
+            document.addCreator("Parqueadero");
+            document.open();
+
+            document.add(new Paragraph(header.parkingName(), TITLE));
+            if (header.nit() != null && !header.nit().isBlank()) {
+                document.add(new Paragraph("NIT " + header.nit(), SMALL_MUTED));
+            }
+            Paragraph title = new Paragraph(content.title(), SECTION);
+            title.setSpacingBefore(6);
+            document.add(title);
+            Paragraph period = new Paragraph();
+            period.add(new Chunk("Período: ", BODY_BOLD));
+            period.add(new Chunk(content.periodLabel(), BODY));
+            document.add(period);
+            for (String filter : content.filters()) {
+                document.add(new Paragraph(filter, BODY));
+            }
+            document.add(new Paragraph("Generado por " + header.generatedBy() + " el "
+                    + DATE_TIME.format(header.generatedAt()), SMALL_MUTED));
+
+            section(document, "Indicadores");
+            PdfPTable indicators = table(new float[]{3, 2});
+            indicators.setWidthPercentage(55);
+            indicators.setHorizontalAlignment(Element.ALIGN_LEFT);
+            headerCell(indicators, "Indicador", Element.ALIGN_LEFT);
+            headerCell(indicators, "Valor", Element.ALIGN_RIGHT);
+            for (Indicator indicator : content.indicators()) {
+                bodyCell(indicators, indicator.label(), Element.ALIGN_LEFT, BODY);
+                bodyCell(indicators, formatIndicator(indicator), Element.ALIGN_RIGHT, BODY_BOLD);
+            }
+            document.add(indicators);
+
+            Font small = FontFactory.getFont(FontFactory.HELVETICA, 8, TEXT);
+            for (var t : content.tables()) {
+                section(document, t.title() + " (" + t.rows().size() + ")");
+                if (t.rows().isEmpty()) {
+                    document.add(new Paragraph("Sin registros para los filtros aplicados.", SMALL_MUTED));
+                    continue;
+                }
+                float[] widths = new float[t.columns().size()];
+                for (int c = 0; c < widths.length; c++) {
+                    widths[c] = t.columns().get(c).kind() == com.parking.application.report.export.TableReportContent.ColumnKind.TEXT ? 2f : 1.2f;
+                }
+                PdfPTable pdfTable = table(widths);
+                for (var column : t.columns()) {
+                    headerCell(pdfTable, column.label(),
+                            column.kind() == com.parking.application.report.export.TableReportContent.ColumnKind.TEXT
+                                    ? Element.ALIGN_LEFT : Element.ALIGN_RIGHT);
+                }
+                for (java.util.List<Object> cells : t.rows()) {
+                    for (int c = 0; c < t.columns().size(); c++) {
+                        var kind = t.columns().get(c).kind();
+                        Object value = cells.get(c);
+                        String text = value == null ? "—"
+                                : kind == com.parking.application.report.export.TableReportContent.ColumnKind.MONEY && value instanceof BigDecimal b ? money(b)
+                                : kind == com.parking.application.report.export.TableReportContent.ColumnKind.COUNT && value instanceof BigDecimal b ? count(b)
+                                : value.toString();
+                        bodyCell(pdfTable, text, kind == com.parking.application.report.export.TableReportContent.ColumnKind.TEXT
+                                ? Element.ALIGN_LEFT : Element.ALIGN_RIGHT, small);
+                    }
+                }
+                document.add(pdfTable);
+            }
+        } catch (DocumentException e) {
+            throw new IllegalStateException("No se pudo generar el PDF del reporte", e);
+        } finally {
+            if (document.isOpen()) document.close();
+        }
+        return out.toByteArray();
+    }
+
     private static String period(ReportData data) {
         return data.from().equals(data.to()) ? DATE.format(data.from())
                 : DATE.format(data.from()) + " al " + DATE.format(data.to());

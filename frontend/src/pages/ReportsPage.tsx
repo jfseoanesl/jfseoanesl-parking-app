@@ -9,43 +9,38 @@ import { SegmentedControl, TextField } from '../components/Form'
 import { Card, PageHeader, StatCard } from '../components/Layout'
 import { useToast } from '../components/Toast'
 import { saveBlob } from '../lib/download'
+import { PRESETS, rangeForPreset, type Preset } from '../lib/reportPeriod'
+import SubscriptionReport from '../components/reports/SubscriptionReport'
 
-type Preset = 'daily' | 'weekly' | 'monthly' | 'custom'
 type ExportFormat = 'xlsx' | 'pdf' | 'csv'
 
+type ReportView = 'general' | 'subscriptions'
 
-const PRESETS: { value: Preset; label: string }[] = [
-  { value: 'daily', label: 'Diario' },
-  { value: 'weekly', label: 'Semanal' },
-  { value: 'monthly', label: 'Mensual' },
-  { value: 'custom', label: 'Rango' },
-]
-
-function isoDate(d: Date): string {
-  return localIsoDate(d)
-}
-
-function rangeForPreset(preset: Preset, customFrom: string, customTo: string): { from: string; to: string } {
-  const today = new Date()
-  if (preset === 'daily') return { from: isoDate(today), to: isoDate(today) }
-  if (preset === 'weekly') {
-    const from = new Date(today)
-    from.setDate(from.getDate() - 6)
-    return { from: isoDate(from), to: isoDate(today) }
-  }
-  if (preset === 'monthly') {
-    const from = new Date(today)
-    from.setDate(from.getDate() - 29)
-    return { from: isoDate(from), to: isoDate(today) }
-  }
-  return { from: customFrom, to: customTo }
-}
-
-/** UC-010 (RF-060 a RF-063). Wireframe: 09-ux-specification.md §5.8. */
+/** UC-010 (RF-060 a RF-063) y reporte de mensualidades (RF-078). Wireframe: 09-ux-specification.md §5.8. */
 export default function ReportsPage() {
+  const [view, setView] = useState<ReportView>('general')
+  return (
+    <div>
+      <div className="mb-4">
+        <SegmentedControl
+          label="Tipo de reporte"
+          options={[
+            { value: 'general', label: 'General' },
+            { value: 'subscriptions', label: 'Mensualidades' },
+          ]}
+          value={view}
+          onChange={setView}
+        />
+      </div>
+      {view === 'general' ? <GeneralReport /> : <SubscriptionReport />}
+    </div>
+  )
+}
+
+function GeneralReport() {
   const [preset, setPreset] = useState<Preset>('daily')
-  const [customFrom, setCustomFrom] = useState(isoDate(new Date()))
-  const [customTo, setCustomTo] = useState(isoDate(new Date()))
+  const [customFrom, setCustomFrom] = useState(localIsoDate())
+  const [customTo, setCustomTo] = useState(localIsoDate())
   const [report, setReport] = useState<Report | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)

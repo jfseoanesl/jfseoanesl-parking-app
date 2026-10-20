@@ -82,4 +82,39 @@ test.describe('Mensualidades', () => {
     await expect(item.getByText(`Mensual · ${customer}`)).toBeVisible()
     await expect(item.getByRole('button', { name: 'Ver comprobante' })).toHaveCount(0)
   })
+
+  test('reporte de mensualidades con filtros y exportación a Excel', async ({ page }) => {
+    const suffix = Date.now().toString().slice(-5)
+    const plate = `RPE${suffix}`
+    const customer = `Reporte E2E ${suffix}`
+
+    await login(page)
+    await page.goto('/mensualidades')
+    await page.getByRole('button', { name: 'Nueva mensualidad' }).click()
+    await page.getByLabel('Cliente').fill(customer)
+    await page.getByLabel('Valor mensual').fill('75000')
+    await page.getByRole('textbox', { name: 'Placa 1', exact: true }).fill(plate)
+    await page.getByRole('button', { name: 'Crear mensualidad' }).click()
+    await expect(page.getByText(`Mensualidad de ${customer} creada`)).toBeVisible()
+
+    await page.goto('/reportes')
+    await page.getByRole('group', { name: 'Tipo de reporte' }).getByRole('button', { name: 'Mensualidades' }).click()
+    await expect(page.getByRole('heading', { name: 'Reporte de mensualidades' })).toBeVisible()
+    await page.getByRole('searchbox', { name: 'Buscar en el reporte' }).fill(plate.toLowerCase())
+    const row = page.getByRole('row').filter({ hasText: customer })
+    await expect(row).toBeVisible()
+    await expect(row.getByText('Sin pago', { exact: true })).toBeVisible()
+
+    // Filtro de estado: "Al día" la excluye; "Sin pago" la vuelve a mostrar.
+    const statuses = page.getByRole('group', { name: 'Estados' })
+    await statuses.getByRole('button', { name: 'Al día' }).click()
+    await expect(page.getByText('Ninguna mensualidad coincide con los filtros')).toBeVisible()
+    await statuses.getByRole('button', { name: 'Sin pago' }).click()
+    await expect(row).toBeVisible()
+
+    const downloadPromise = page.waitForEvent('download')
+    await page.getByRole('button', { name: 'Excel' }).click()
+    const download = await downloadPromise
+    expect(download.suggestedFilename()).toMatch(/^reporte-mensualidades_.*\.xlsx$/)
+  })
 })

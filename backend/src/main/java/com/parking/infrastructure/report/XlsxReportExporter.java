@@ -9,6 +9,7 @@ import com.parking.application.report.export.ReportContent.Row;
 import com.parking.application.report.export.ReportExporter;
 import com.parking.application.report.export.ReportFormat;
 import com.parking.application.report.export.ReportHeader;
+import com.parking.application.report.export.TableReportContent;
 import org.apache.poi.ss.usermodel.BorderStyle;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
@@ -24,6 +25,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.math.BigDecimal;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 
 /**
  * RF-063: reporte en Excel. Montos y conteos se escriben como NUMEROS con formato (no texto), para
@@ -92,6 +94,76 @@ public class XlsxReportExporter implements ReportExporter {
             sheet.getPrintSetup().setFitWidth((short) 1);
             sheet.setFitToPage(true);
 
+            workbook.write(out);
+            return out.toByteArray();
+        } catch (IOException e) {
+            throw new UncheckedIOException("No se pudo generar el Excel del reporte", e);
+        }
+    }
+
+    /** RF-078: hoja "Resumen" (encabezado, filtros e indicadores) y una hoja por tabla, con autofiltro. */
+    @Override
+    public byte[] exportTables(TableReportContent content, ReportHeader header) {
+        try (XSSFWorkbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            Styles styles = new Styles(workbook);
+            Sheet summary = workbook.createSheet("Resumen");
+            int r = 0;
+            text(summary, r++, 0, header.parkingName(), styles.title);
+            if (header.nit() != null && !header.nit().isBlank()) {
+                text(summary, r++, 0, "NIT " + header.nit(), styles.muted);
+            }
+            text(summary, r++, 0, content.title(), styles.section);
+            text(summary, r++, 0, "Período: " + content.periodLabel(), styles.plain);
+            for (String filter : content.filters()) {
+                text(summary, r++, 0, filter, styles.plain);
+            }
+            text(summary, r++, 0, "Generado por " + header.generatedBy() + " el "
+                    + DATE_TIME.format(header.generatedAt()), styles.muted);
+            r++;
+            text(summary, r, 0, "Indicador", styles.tableHeader);
+            text(summary, r++, 1, "Valor", styles.tableHeader);
+            for (Indicator indicator : content.indicators()) {
+                text(summary, r, 0, indicator.label(), styles.cell);
+                if (indicator.kind() == Kind.TEXT) {
+                    text(summary, r, 1, (String) indicator.value(), styles.cellRight);
+                } else {
+                    number(summary, r, 1, (BigDecimal) indicator.value(),
+                            indicator.kind() == Kind.MONEY ? styles.money : styles.count);
+                }
+                r++;
+            }
+            summary.setColumnWidth(0, 40 * 256);
+            summary.setColumnWidth(1, 18 * 256);
+
+            for (TableReportContent.Table table : content.tables()) {
+                Sheet sheet = workbook.createSheet(table.sheetName());
+                int row = 0;
+                for (int c = 0; c < table.columns().size(); c++) {
+                    text(sheet, row, c, table.columns().get(c).label(), styles.tableHeader);
+                }
+                row++;
+                for (List<Object> cells : table.rows()) {
+                    for (int c = 0; c < table.columns().size(); c++) {
+                        Object value = cells.get(c);
+                        TableReportContent.ColumnKind kind = table.columns().get(c).kind();
+                        if (kind == TableReportContent.ColumnKind.TEXT || !(value instanceof BigDecimal)) {
+                            // Texto como celda de texto: nunca se interpreta como formula (CSV/Excel injection).
+                            text(sheet, row, c, value == null ? "" : value.toString(), styles.cell);
+                        } else {
+                            number(sheet, row, c, (BigDecimal) value,
+                                    kind == TableReportContent.ColumnKind.MONEY ? styles.money : styles.count);
+                        }
+                    }
+                    row++;
+                }
+                if (!table.rows().isEmpty()) {
+                    sheet.setAutoFilter(new org.apache.poi.ss.util.CellRangeAddress(0, row - 1, 0, table.columns().size() - 1));
+                }
+                sheet.createFreezePane(0, 1);
+                for (int c = 0; c < table.columns().size(); c++) {
+                    sheet.setColumnWidth(c, (table.columns().get(c).kind() == TableReportContent.ColumnKind.TEXT ? 22 : 15) * 256);
+                }
+            }
             workbook.write(out);
             return out.toByteArray();
         } catch (IOException e) {

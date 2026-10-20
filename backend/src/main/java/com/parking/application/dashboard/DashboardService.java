@@ -23,10 +23,13 @@ public class DashboardService {
     private final CashSessionRepository cashSessionRepository;
     private final ConfigurationRepository configurationRepository;
     private final TimeProvider timeProvider;
+    private final com.parking.domain.repository.SubscriptionPaymentRepository subscriptionPaymentRepository;
 
     public DashboardService(ParkingSessionRepository parkingSessionRepository, PaymentRepository paymentRepository,
                              CashSessionRepository cashSessionRepository,
-                             ConfigurationRepository configurationRepository, TimeProvider timeProvider) {
+                             ConfigurationRepository configurationRepository, TimeProvider timeProvider,
+                             com.parking.domain.repository.SubscriptionPaymentRepository subscriptionPaymentRepository) {
+        this.subscriptionPaymentRepository = subscriptionPaymentRepository;
         this.parkingSessionRepository = parkingSessionRepository;
         this.paymentRepository = paymentRepository;
         this.cashSessionRepository = cashSessionRepository;
@@ -47,7 +50,11 @@ public class DashboardService {
         long exitsToday = parkingSessionRepository
                 .findFinalizedByExitDateTimeBetween(startOfDay, startOfTomorrow).size();
         BigDecimal collectedToday = paymentRepository.findByPaidAtBetween(startOfDay, startOfTomorrow).stream()
-                .map(p -> p.chargedAmount()).reduce(BigDecimal.ZERO, BigDecimal::add);
+                .map(p -> p.chargedAmount()).reduce(BigDecimal.ZERO, BigDecimal::add)
+                // BR-031: las mensualidades cobradas hoy tambien son recaudo del dia (igual que en caja y reportes).
+                .add(subscriptionPaymentRepository.findByPaidAtBetween(startOfDay, startOfTomorrow).stream()
+                        .map(com.parking.domain.model.SubscriptionPayment::amount)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add));
 
         long openCashSessions = cashSessionRepository.countOpen();
 

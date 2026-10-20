@@ -35,7 +35,10 @@ public record ReportContent(List<Indicator> indicators, List<Breakdown> breakdow
                 new Indicator("Parqueos anulados", Kind.COUNT, BigDecimal.valueOf(d.cancelledSessions())),
                 new Indicator("Duración promedio", Kind.TEXT, formatDuration(d.averageDurationMinutes())),
                 new Indicator("Hora de mayor movimiento", Kind.TEXT, d.peakHour() == null ? "—" : d.peakHour() + ":00"),
-                new Indicator("Diferencias de caja", Kind.MONEY, d.cashDifferencesSum()));
+                new Indicator("Diferencias de caja", Kind.MONEY, d.cashDifferencesSum()),
+                new Indicator("Mensualidades cobradas", Kind.MONEY, d.subscriptionCollected()),
+                new Indicator("Pagos de mensualidad", Kind.COUNT, BigDecimal.valueOf(d.subscriptionPayments())),
+                new Indicator("Salidas de clientes mensuales", Kind.COUNT, BigDecimal.valueOf(d.subscriberExits())));
 
         List<Breakdown> breakdowns = List.of(
                 breakdown("Vehículos por tipo", Kind.COUNT, toDecimals(d.enteredByVehicleType())),

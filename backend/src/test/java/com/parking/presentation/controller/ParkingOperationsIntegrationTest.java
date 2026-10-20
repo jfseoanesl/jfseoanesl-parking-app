@@ -32,6 +32,23 @@ class ParkingOperationsIntegrationTest {
     @Autowired
     private MockMvc mockMvc;
 
+    /**
+     * Empleado nuevo y exclusivo de la prueba (sin caja abierta). Todas las clases comparten la misma
+     * base en memoria y el orden de ejecución cambia entre sistemas operativos (en Linux falló en CI),
+     * así que ninguna prueba debe abrir ni esperar sin caja a los usuarios del seed (admin/empleado).
+     */
+    private MockHttpSession freshEmployee() throws Exception {
+        String username = "emp" + java.util.UUID.randomUUID().toString().substring(0, 8);
+        mockMvc.perform(post("/api/users")
+                        .with(SecurityMockMvcRequestPostProcessors.csrf())
+                        .session(loginAs("admin", "admin123"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"%s\",\"fullName\":\"%s\",\"password\":\"claveSegura1\",\"role\":\"EMPLOYEE\"}"
+                                .formatted(username, username)))
+                .andExpect(status().isCreated());
+        return loginAs(username, "claveSegura1");
+    }
+
     private MockHttpSession loginAs(String username, String password) throws Exception {
         MvcResult result = mockMvc.perform(post("/api/auth/login")
                         .with(SecurityMockMvcRequestPostProcessors.csrf())
@@ -281,8 +298,8 @@ class ParkingOperationsIntegrationTest {
 
     @Test
     void checkoutSinCajaAbiertaFalla() throws Exception {
-        // "admin" no abre caja en ningun otro test de esta clase - aisla este caso.
-        MockHttpSession session = loginAs("admin", "admin123");
+        // Empleado nuevo: nunca tiene caja abierta, sin importar qué pruebas corrieron antes.
+        MockHttpSession session = freshEmployee();
 
         MvcResult entryResult = mockMvc.perform(post("/api/parking-sessions")
                         .with(SecurityMockMvcRequestPostProcessors.csrf())

@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowRight, Clock, History, Receipt, Search, User } from 'lucide-react'
+import { ArrowRight, Clock, History, Receipt, Search, Ticket, User } from 'lucide-react'
 import { api, ApiError } from '../api/client'
 import type { AdminUser, HistoryPage as HistoryResult, ParkingStatus } from '../api/types'
 import { formatCurrency, formatDateTime, formatElapsed, localIsoDate } from '../lib/format'
@@ -8,7 +8,7 @@ import { Button } from '../components/Button'
 import { Alert, EmptyState, Skeleton } from '../components/Feedback'
 import { SelectField, TextField } from '../components/Form'
 import { PageHeader } from '../components/Layout'
-import { PlateBadge, StatusBadge, VehicleIcon } from '../components/Badges'
+import { Badge, PlateBadge, StatusBadge, VehicleIcon } from '../components/Badges'
 
 function isoDaysAgo(days: number): string {
   const d = new Date()
@@ -127,6 +127,9 @@ export default function HistoryPage() {
               <div className="flex flex-wrap items-center gap-3">
                 <PlateBadge plate={item.plate} size="sm" />
                 <StatusBadge status={item.status} />
+                {item.subscriptionCustomerName && (
+                  <Badge tone="primary" dot={false}>Mensual · {item.subscriptionCustomerName}</Badge>
+                )}
                 <span className="flex items-center gap-1.5 text-sm text-neutral-600">
                   <VehicleIcon code={item.vehicleTypeCode} className="size-4" />
                   {item.vehicleTypeName}
@@ -154,20 +157,32 @@ export default function HistoryPage() {
                   Ingresó: {item.entryEmployeeName ?? '—'}
                   {item.exitEmployeeName && <> · Cobró: {item.exitEmployeeName}</>}
                 </p>
+                {item.entryNumber && <p className="font-mono text-neutral-600">Ingreso {item.entryNumber}</p>}
                 {item.appliedTariffName && <p className="text-neutral-600">Tarifa: {item.appliedTariffName}</p>}
                 {item.operationNumber && <p className="font-mono text-neutral-600">{item.operationNumber}</p>}
                 {item.notes && <p className="text-neutral-600 sm:col-span-2">Observaciones: {item.notes}</p>}
                 {item.cancelReason && <p className="text-danger-700 sm:col-span-2">Motivo de anulación: {item.cancelReason}</p>}
               </div>
-              {item.paymentId && (
-                <div className="mt-3 border-t border-neutral-100 pt-3">
-                  <Button
-                    variant="secondary"
-                    icon={<Receipt aria-hidden className="size-4" />}
-                    onClick={() => navigate(`/comprobantes/${item.paymentId}`)}
-                  >
-                    Ver comprobante
-                  </Button>
+              {(item.paymentId || item.entryNumber) && (
+                <div className="mt-3 flex flex-wrap gap-2 border-t border-neutral-100 pt-3">
+                  {item.entryNumber && (
+                    <Button
+                      variant="secondary"
+                      icon={<Ticket aria-hidden className="size-4" />}
+                      onClick={() => navigate(`/comprobantes-ingreso/${item.id}`)}
+                    >
+                      Comprobante de ingreso
+                    </Button>
+                  )}
+                  {item.paymentId && (
+                    <Button
+                      variant="secondary"
+                      icon={<Receipt aria-hidden className="size-4" />}
+                      onClick={() => navigate(`/comprobantes/${item.paymentId}`)}
+                    >
+                      Ver comprobante
+                    </Button>
+                  )}
                 </div>
               )}
             </li>

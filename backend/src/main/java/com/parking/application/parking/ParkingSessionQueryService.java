@@ -25,10 +25,13 @@ public class ParkingSessionQueryService {
     private final UserRepository userRepository;
     private final TariffRepository tariffRepository;
     private final TimeProvider timeProvider;
+    private final com.parking.domain.repository.SubscriptionRepository subscriptionRepository;
 
     public ParkingSessionQueryService(ParkingSessionRepository parkingSessionRepository,
                                        VehicleTypeRepository vehicleTypeRepository, UserRepository userRepository,
-                                       TariffRepository tariffRepository, TimeProvider timeProvider) {
+                                       TariffRepository tariffRepository, TimeProvider timeProvider,
+                                       com.parking.domain.repository.SubscriptionRepository subscriptionRepository) {
+        this.subscriptionRepository = subscriptionRepository;
         this.parkingSessionRepository = parkingSessionRepository;
         this.vehicleTypeRepository = vehicleTypeRepository;
         this.userRepository = userRepository;
@@ -69,7 +72,13 @@ public class ParkingSessionQueryService {
                 tariffName,
                 session.calculatedAmount(),
                 session.notes(),
-                session.cancelReason()
+                session.cancelReason(),
+                session.entryNumber(),
+                session.subscriptionId(),
+                session.subscriptionId() != null
+                        ? subscriptionRepository.findById(session.subscriptionId())
+                                .map(com.parking.domain.model.Subscription::customerName).orElse(null)
+                        : null
         );
     }
 }

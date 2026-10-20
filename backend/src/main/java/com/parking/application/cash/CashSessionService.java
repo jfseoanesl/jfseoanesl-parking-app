@@ -33,11 +33,13 @@ public class CashSessionService {
     private final CashMovementRepository cashMovementRepository;
     private final AuditService auditService;
     private final TimeProvider timeProvider;
+    private final com.parking.domain.repository.SubscriptionPaymentRepository subscriptionPaymentRepository;
 
     public CashSessionService(CashSessionRepository cashSessionRepository, PaymentRepository paymentRepository,
                                PaymentMethodRepository paymentMethodRepository,
                                CashMovementRepository cashMovementRepository, AuditService auditService,
-                               TimeProvider timeProvider) {
+                               TimeProvider timeProvider, com.parking.domain.repository.SubscriptionPaymentRepository subscriptionPaymentRepository) {
+        this.subscriptionPaymentRepository = subscriptionPaymentRepository;
         this.cashSessionRepository = cashSessionRepository;
         this.paymentRepository = paymentRepository;
         this.paymentMethodRepository = paymentMethodRepository;
@@ -80,6 +82,18 @@ public class CashSessionService {
                 case CASH -> cash = cash.add(payment.chargedAmount());
                 case ELECTRONIC -> electronic = electronic.add(payment.chargedAmount());
                 case OTHER -> other = other.add(payment.chargedAmount());
+            }
+        }
+
+        // BR-031: las mensualidades cobradas en esta caja suman igual que los cobros de salida (arqueo).
+        for (var subscriptionPayment : subscriptionPaymentRepository.findByCashSessionId(session.id())) {
+            PaymentMethodCategory category = paymentMethodRepository.findById(subscriptionPayment.paymentMethodId())
+                    .map(PaymentMethod::category)
+                    .orElse(PaymentMethodCategory.OTHER);
+            switch (category) {
+                case CASH -> cash = cash.add(subscriptionPayment.amount());
+                case ELECTRONIC -> electronic = electronic.add(subscriptionPayment.amount());
+                case OTHER -> other = other.add(subscriptionPayment.amount());
             }
         }
 

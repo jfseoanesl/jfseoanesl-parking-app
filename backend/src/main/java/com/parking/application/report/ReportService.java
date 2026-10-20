@@ -43,11 +43,14 @@ public class ReportService {
     private final PaymentMethodRepository paymentMethodRepository;
     private final UserRepository userRepository;
     private final TimeProvider timeProvider;
+    private final com.parking.domain.repository.SubscriptionPaymentRepository subscriptionPaymentRepository;
 
     public ReportService(ParkingSessionRepository parkingSessionRepository, PaymentRepository paymentRepository,
                           CashSessionRepository cashSessionRepository, VehicleTypeRepository vehicleTypeRepository,
                           TariffRepository tariffRepository, PaymentMethodRepository paymentMethodRepository,
-                          UserRepository userRepository, TimeProvider timeProvider) {
+                          UserRepository userRepository, TimeProvider timeProvider,
+                          com.parking.domain.repository.SubscriptionPaymentRepository subscriptionPaymentRepository) {
+        this.subscriptionPaymentRepository = subscriptionPaymentRepository;
         this.parkingSessionRepository = parkingSessionRepository;
         this.paymentRepository = paymentRepository;
         this.cashSessionRepository = cashSessionRepository;
@@ -72,6 +75,7 @@ public class ReportService {
         List<ParkingSession> cancelled =
                 parkingSessionRepository.findCancelledByCancelledAtBetween(fromInstant, toInstant);
         List<Payment> payments = paymentRepository.findByPaidAtBetween(fromInstant, toInstant);
+        var subscriptionPayments = subscriptionPaymentRepository.findByPaidAtBetween(fromInstant, toInstant);
         List<CashSession> closedCashSessions =
                 cashSessionRepository.findClosedByClosedAtBetween(fromInstant, toInstant);
 
@@ -86,8 +90,10 @@ public class ReportService {
                                 id -> vehicleTypeRepository.findById(id).map(VehicleType::name).orElse("—")),
                         Collectors.counting()));
 
+        BigDecimal subscriptionCollected = subscriptionPayments.stream()
+                .map(com.parking.domain.model.SubscriptionPayment::amount).reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal totalCollected = payments.stream()
-                .map(Payment::chargedAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+                .map(Payment::chargedAmount).reduce(BigDecimal.ZERO, BigDecimal::add).add(subscriptionCollected);
 
         Map<String, BigDecimal> collectedByPaymentMethod = payments.stream()
                 .collect(Collectors.groupingBy(
@@ -100,6 +106,19 @@ public class ReportService {
                         p -> nameOf(employeeNames, p.userId(),
                                 id -> userRepository.findById(id).map(User::fullName).orElse("—")),
                         Collectors.reducing(BigDecimal.ZERO, Payment::chargedAmount, BigDecimal::add)));
+
+        // BR-031: las mensualidades cuentan en el desglose por medio de pago y por empleado.
+        Map<String, BigDecimal> byMethod = new HashMap<>(collectedByPaymentMethod);
+        Map<String, BigDecimal> byEmployee = new HashMap<>(collectedByEmployee);
+        for (var p : subscriptionPayments) {
+            byMethod.merge(nameOf(paymentMethodNames, p.paymentMethodId(),
+                    id -> paymentMethodRepository.findById(id).map(pm -> pm.name()).orElse("—")), p.amount(), BigDecimal::add);
+            byEmployee.merge(nameOf(employeeNames, p.userId(),
+                    id -> userRepository.findById(id).map(User::fullName).orElse("—")), p.amount(), BigDecimal::add);
+        }
+        collectedByPaymentMethod = byMethod;
+        collectedByEmployee = byEmployee;
+        long subscriberExits = finalized.stream().filter(s -> s.subscriptionId() != null && s.appliedTariffId() == null).count();
 
         Map<String, Payment> paymentBySession = payments.stream()
                 .collect(Collectors.toMap(Payment::parkingSessionId, p -> p, (a, b) -> a));
@@ -130,7 +149,7 @@ public class ReportService {
 
         return new ReportData(from, to, entered.size(), finalized.size(), enteredByVehicleType, totalCollected,
                 collectedByPaymentMethod, collectedByTariff, averageDurationMinutes, peakHour, collectedByEmployee,
-                cancelled.size(), cashDifferencesSum);
+                cancelled.size(), cashDifferencesSum, subscriptionCollected, subscriptionPayments.size(), subscriberExits);
     }
 
     private static String nameOf(Map<String, String> cache, String id, java.util.function.Function<String, String> resolver) {

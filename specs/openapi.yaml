@@ -148,6 +148,24 @@ paths:
               schema: { $ref: '#/components/schemas/ParkingSessionDetail' }
         '404': { description: No encontrada }
 
+  /parking-sessions/{id}/entry-receipt:
+    get:
+      summary: Comprobante de ingreso (RF-072)
+      description: >
+        Soporte para el cliente de que su vehículo ingresó. Disponible para cualquier estado de la
+        sesión (reimpresión desde Historial). La vista imprimible (/comprobantes-ingreso/{id}) aplica
+        receiptFormatJson (NIT, dirección, teléfono, empleado, pie).
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EntryReceipt' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /parking-sessions/{id}/quote:
     post:
       summary: Calcular (sin registrar) el valor a cobrar en este momento
@@ -648,6 +666,188 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/ApiError' }
 
+  # --- Mensualidades (RF-074 a RF-077, ADR-010) ---
+
+  /subscriptions:
+    get:
+      summary: Listar mensualidades con su estado (Administrador y Empleado)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Subscription' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+    post:
+      summary: Crear mensualidad (Administrador)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SubscriptionInput' }
+      responses:
+        '201':
+          description: Creada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Subscription' }
+        '400': { description: Datos inválidos (día de corte fuera de 1–28, valor ≤ 0, sin placas, placa repetida) }
+        '403': { $ref: '#/components/responses/AdminOnly' }
+        '409': { description: Una placa ya pertenece a otra mensualidad (PLATE_IN_OTHER_SUBSCRIPTION) }
+
+  /subscriptions/{id}:
+    parameters:
+      - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+    get:
+      summary: Detalle de una mensualidad
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Subscription' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      summary: Editar mensualidad (Administrador; reemplaza las placas)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SubscriptionInput' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Subscription' }
+        '403': { $ref: '#/components/responses/AdminOnly' }
+
+  /subscriptions/{id}/status:
+    patch:
+      summary: Activar o desactivar (Administrador)
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [active], properties: { active: { type: boolean } } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Subscription' }
+
+  /subscriptions/{id}/payments:
+    parameters:
+      - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+    get:
+      summary: Pagos de la mensualidad (más recientes primero)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/SubscriptionPayment' }
+    post:
+      summary: Cobrar la mensualidad en la caja abierta (BR-031)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [paymentMethodId, amount]
+              properties:
+                paymentMethodId: { type: string, format: uuid }
+                amount: { type: number, description: Debe ser exactamente el valor mensual pactado }
+      responses:
+        '201':
+          description: Pago registrado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SubscriptionPayment' }
+        '409': { description: 'NO_OPEN_CASH_SESSION, CHARGED_AMOUNT_MISMATCH o SUBSCRIPTION_INACTIVE' }
+
+  /subscription-payments/{id}/receipt:
+    get:
+      summary: Datos del comprobante de un pago de mensualidad
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { description: OK }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /parking-sessions/{id}/exit-subscription:
+    post:
+      summary: Salida sin cobro de un cliente mensual al día o en gracia (BR-030)
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      responses:
+        '200':
+          description: Sesión finalizada sin pago
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ParkingSessionDetail' }
+        '409': { description: 'SUBSCRIPTION_NOT_COVERING o SESSION_NOT_ACTIVE' }
+
+  # --- Respaldo (RF-073, ADR-009) ---
+
+  /admin/backup:
+    get:
+      summary: Exportar el respaldo completo de la base de datos (Administrador)
+      description: >
+        JSON portable (independiente del motor) con todas las tablas. Contiene datos sensibles
+        (usuarios con hash de contraseña, cobros, auditoría). Audita DATABASE_EXPORTED.
+      responses:
+        '200':
+          description: Archivo de respaldo
+          headers:
+            Content-Disposition:
+              schema: { type: string, example: 'attachment; filename="parking-respaldo_2026-10-06_0743.json"' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BackupFile' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AdminOnly' }
+
+  /admin/backup/import:
+    post:
+      summary: Importar un respaldo reemplazando TODOS los datos (Administrador)
+      description: >
+        Transacción única: valida formato, versión de esquema (debe coincidir), tablas completas y
+        al menos un administrador activo; borra y reinserta todas las tablas y restaura los
+        consecutivos. Si algo falla, nada cambia. Audita DATABASE_IMPORTED si quien importa existe en
+        los datos restaurados.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BackupFile' }
+      responses:
+        '200':
+          description: Importado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  schemaVersion: { type: string, example: '6' }
+                  counts: { type: object, additionalProperties: { type: integer } }
+        '400':
+          description: Respaldo inválido, de otra versión de esquema, incompleto o sin administrador activo
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AdminOnly' }
+        '413': { description: El archivo supera el límite de 50 MB del proxy }
+
   # --- Auditoría (UC-012, RF-067, BR-025) ---
 
   /audit-logs:
@@ -663,7 +863,7 @@ paths:
         - name: entity
           in: query
           required: false
-          schema: { type: string, enum: [Tariff, User, CashSession, ParkingSession, Configuration] }
+          schema: { type: string, enum: [Tariff, User, CashSession, ParkingSession, Configuration, Database] }
         - name: entityId
           in: query
           required: false
@@ -764,6 +964,61 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/ApiError' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AdminOnly' }
+
+  /reports/subscriptions:
+    get:
+      summary: Reporte de mensualidades (Administrador, RF-078)
+      description: >
+        Estado de cartera (estado BR-028 y días de mora calculados a hoy), pagos cobrados en el
+        período e indicadores. Filtros combinables.
+      parameters:
+        - $ref: '#/components/parameters/ReportFrom'
+        - $ref: '#/components/parameters/ReportTo'
+        - name: status
+          in: query
+          required: false
+          description: Uno o varios separados por coma; vacío = todos.
+          schema: { type: string, example: 'VENCIDA,SIN_PAGO' }
+        - name: q
+          in: query
+          required: false
+          description: Cliente, documento o placa (sin distinguir mayúsculas ni espacios).
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SubscriptionReport' }
+        '400':
+          description: Estado inválido o from posterior a to
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AdminOnly' }
+
+  /reports/subscriptions/export:
+    get:
+      summary: Exportar el reporte de mensualidades (Excel, PDF o CSV)
+      parameters:
+        - $ref: '#/components/parameters/ReportFrom'
+        - $ref: '#/components/parameters/ReportTo'
+        - { name: status, in: query, required: false, schema: { type: string } }
+        - { name: q, in: query, required: false, schema: { type: string } }
+        - { name: format, in: query, required: true, schema: { type: string, enum: [xlsx, pdf, csv] } }
+      responses:
+        '200':
+          description: Archivo reporte-mensualidades_<período>.<ext>
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema: { type: string, format: binary }
+            application/pdf:
+              schema: { type: string, format: binary }
+            text/csv:
+              schema: { type: string, format: binary }
+        '400': { description: Formato o filtros inválidos }
         '403': { $ref: '#/components/responses/AdminOnly' }
 
   /dashboard:
@@ -898,6 +1153,11 @@ components:
         elapsedMinutes: { type: integer }
         entryEmployee: { type: string }
         status: { type: string, enum: [EN_PARQUEADERO, FINALIZADO, ANULADO] }
+        entryNumber:
+          type: string
+          nullable: true
+          example: ING-000001
+          description: Consecutivo del comprobante de ingreso (BR-027); null en sesiones anteriores a V6.
 
     ParkingSessionDetail:
       allOf:
@@ -1138,9 +1398,10 @@ components:
           description: >
             RF-015. Objeto JSON (400 si no lo es o supera 2000 caracteres) con los campos visibles del
             comprobante: showNit, showAddress, showPhone, showEmployee, showTariff, showDuration
-            (booleanos, por defecto true) y footer (texto). Enviarlo siempre en el PUT: un valor
-            ausente se guarda como null.
-          example: '{"showNit":true,"showAddress":true,"showPhone":false,"showEmployee":true,"showTariff":true,"showDuration":true,"footer":"Gracias por su visita"}'
+            (booleanos, por defecto true), footer (texto), printOnEntry (ofrecer imprimir comprobante
+            al ingreso, por defecto false) y printOnExit (al cobrar, por defecto true). Enviarlo siempre
+            en el PUT: un valor ausente se guarda como null.
+          example: '{"showNit":true,"showAddress":true,"showPhone":false,"showEmployee":true,"showTariff":true,"showDuration":true,"footer":"Gracias por su visita","printOnEntry":true,"printOnExit":true}'
 
     VehicleType:
       type: object
@@ -1207,7 +1468,9 @@ components:
           description: >
             TARIFF_CREATED, TARIFF_UPDATED, TARIFF_ACTIVATED, TARIFF_DEACTIVATED, TARIFF_OVERRIDDEN,
             USER_CREATED, USER_ACTIVATED, USER_DEACTIVATED, USER_PASSWORD_CHANGED,
-            CASH_SESSION_CLOSED, CASH_SESSION_ADJUSTED, PARKING_SESSION_CANCELLED, CONFIGURATION_UPDATED.
+            CASH_SESSION_CLOSED, CASH_SESSION_ADJUSTED, PARKING_SESSION_CANCELLED, CONFIGURATION_UPDATED,
+            DATABASE_EXPORTED, DATABASE_IMPORTED, SUBSCRIPTION_CREATED, SUBSCRIPTION_UPDATED,
+            SUBSCRIPTION_ACTIVATED, SUBSCRIPTION_DEACTIVATED.
         entityName: { type: string, example: Tariff }
         entityId: { type: string }
         oldValue: { type: string, nullable: true, description: JSON con el estado anterior (si aplica). }
@@ -1237,6 +1500,7 @@ components:
           description: Para abrir el comprobante (GET /payments/{id}/receipt)
         notes: { type: string, nullable: true }
         cancelReason: { type: string, nullable: true }
+        entryNumber: { type: string, nullable: true, example: ING-000001 }
 
     HistoryPage:
       type: object
@@ -1245,6 +1509,21 @@ components:
           type: array
           items: { $ref: '#/components/schemas/HistoryItem' }
         truncated: { type: boolean, description: true si había más de 500 resultados }
+
+    EntryReceipt:
+      type: object
+      properties:
+        parkingName: { type: string, nullable: true }
+        nit: { type: string, nullable: true }
+        address: { type: string, nullable: true }
+        phone: { type: string, nullable: true }
+        entryNumber: { type: string, nullable: true, example: ING-000001 }
+        plate: { type: string }
+        vehicleTypeName: { type: string, nullable: true }
+        entryDateTime: { type: string, format: date-time }
+        employeeName: { type: string, nullable: true }
+        notes: { type: string, nullable: true }
+        status: { type: string, enum: [EN_PARQUEADERO, FINALIZADO, ANULADO] }
 
     CashOperation:
       type: object
@@ -1271,6 +1550,115 @@ components:
         expectedCash: { type: number, nullable: true }
         reportedCash: { type: number, nullable: true }
         difference: { type: number, nullable: true }
+
+    SubscriptionInput:
+      type: object
+      required: [customerName, monthlyFee, cutOffDay, vehicles]
+      properties:
+        customerName: { type: string }
+        documentId: { type: string, nullable: true }
+        phone: { type: string, nullable: true }
+        monthlyFee: { type: number, exclusiveMinimum: 0 }
+        cutOffDay: { type: integer, minimum: 1, maximum: 28 }
+        notes: { type: string, nullable: true }
+        vehicles:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [plate, vehicleTypeId]
+            properties:
+              plate: { type: string }
+              vehicleTypeId: { type: string, format: uuid }
+
+    Subscription:
+      allOf:
+        - $ref: '#/components/schemas/SubscriptionInput'
+        - type: object
+          properties:
+            id: { type: string, format: uuid }
+            paidUntil: { type: string, format: date, nullable: true }
+            active: { type: boolean }
+            status: { type: string, enum: [AL_DIA, EN_GRACIA, VENCIDA, SIN_PAGO, INACTIVA] }
+            vehicleInsidePlate: { type: string, nullable: true }
+
+    SubscriptionPayment:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        subscriptionId: { type: string, format: uuid }
+        operationNumber: { type: string, example: OP-000123 }
+        amount: { type: number }
+        periodFrom: { type: string, format: date }
+        periodTo: { type: string, format: date }
+        paymentMethodId: { type: string, format: uuid }
+        paidAt: { type: string, format: date-time }
+
+    SubscriptionReport:
+      type: object
+      properties:
+        from: { type: string, format: date }
+        to: { type: string, format: date }
+        today: { type: string, format: date, description: Fecha a la que se calculan estado y mora }
+        collected: { type: number }
+        paymentsCount: { type: integer }
+        activeCount: { type: integer }
+        countByStatus: { type: object, additionalProperties: { type: integer } }
+        overdueAmount: { type: number, description: Suma del valor mensual de las VENCIDA y SIN_PAGO }
+        portfolio:
+          type: array
+          items:
+            type: object
+            properties:
+              subscriptionId: { type: string, format: uuid }
+              customerName: { type: string }
+              documentId: { type: string, nullable: true }
+              phone: { type: string, nullable: true }
+              plates: { type: array, items: { type: string } }
+              monthlyFee: { type: number }
+              cutOffDay: { type: integer }
+              paidUntil: { type: string, format: date, nullable: true }
+              status: { type: string, enum: [AL_DIA, EN_GRACIA, VENCIDA, SIN_PAGO, INACTIVA] }
+              daysOverdue: { type: integer, nullable: true }
+              paidInPeriod: { type: number }
+              paymentsInPeriod: { type: integer }
+              vehicleInsidePlate: { type: string, nullable: true }
+        payments:
+          type: array
+          items:
+            type: object
+            properties:
+              paymentId: { type: string, format: uuid }
+              paidAt: { type: string, format: date-time }
+              operationNumber: { type: string }
+              customerName: { type: string }
+              documentId: { type: string, nullable: true }
+              periodFrom: { type: string, format: date }
+              periodTo: { type: string, format: date }
+              amount: { type: number }
+              paymentMethodName: { type: string }
+              employeeName: { type: string }
+
+    BackupFile:
+      type: object
+      required: [format, formatVersion, schemaVersion, tables]
+      properties:
+        format: { type: string, enum: [parking-backup] }
+        formatVersion: { type: integer, example: 1 }
+        schemaVersion: { type: string, example: '6', description: Versión Flyway; debe coincidir al importar }
+        exportedAt: { type: string, format: date-time }
+        exportedBy: { type: string, example: admin }
+        sourceDatabase: { type: string, example: SQLite }
+        counts: { type: object, additionalProperties: { type: integer } }
+        tables:
+          type: object
+          description: >
+            Una lista por tabla, con los campos de la entidad (camelCase): roles, users, vehicleTypes,
+            paymentMethods, configuration, tariffs, cashSessions, parkingSessions, payments,
+            cashMovements, auditLogs y operationCounters ({name, counterValue}).
+          additionalProperties:
+            type: array
+            items: { type: object }
 
     ChangeOwnPasswordRequest:
       type: object

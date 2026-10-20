@@ -12,6 +12,12 @@ public interface ParkingSessionRepository {
 
     Optional<ParkingSession> findById(String id);
 
+    /** BR-027: reserva atómica del siguiente consecutivo de ingreso. */
+    long nextEntrySequence();
+
+    /** BR-029: vehículo de la mensualidad que está dentro (a lo sumo uno). */
+    Optional<ParkingSession> findActiveBySubscriptionId(String subscriptionId);
+
     /** BR-001: a lo sumo una coincide, pero se expone como Optional por claridad de intención. */
     Optional<ParkingSession> findActiveByPlate(String normalizedPlate);
 

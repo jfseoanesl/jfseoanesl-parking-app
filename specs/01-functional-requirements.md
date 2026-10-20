@@ -30,7 +30,7 @@
 | RF-012 | El administrador debe poder configurar la zona horaria del parqueadero (semilla: `America/Bogota`). | Administrador | M | BR-026 |
 | RF-013 | El administrador debe poder configurar la moneda (semilla: COP). | Administrador | S | — |
 | RF-014 | El administrador debe poder configurar el catálogo de medios de pago. | Administrador | M | BR-018 |
-| RF-015 | El administrador debe poder configurar los campos visibles del comprobante de pago. | Administrador | S | BR-017 |
+| RF-015 | El administrador debe poder configurar los campos visibles del comprobante de pago y si se ofrece imprimir comprobante al ingreso (`printOnEntry`, por defecto no) y/o a la salida (`printOnExit`, por defecto sí). | Administrador | S | BR-017 |
 
 ## Módulo: Tipos de vehículo
 
@@ -60,6 +60,7 @@
 | RF-027 | El sistema debe confirmar visualmente el ingreso registrado. | — | M | — |
 | RF-028 | El sistema debe permitir registrar observaciones opcionales en el ingreso. | Empleado | C | — |
 | RF-029 | El sistema debe registrar qué empleado realizó el ingreso. | — | M | — |
+| RF-072 | El sistema debe permitir imprimir un comprobante de ingreso como soporte para el cliente, con consecutivo `ING-000001`, placa, tipo de vehículo, fecha/hora de ingreso, observaciones y (según el formato) el empleado que registró. Se ofrece tras el ingreso solo si está activado en la configuración (RF-015) y siempre se puede reimprimir desde Historial. | Empleado, Administrador | S | BR-027 |
 
 ## Módulo: Vehículos actualmente estacionados
 
@@ -145,6 +146,16 @@
 | RF-067 | El administrador debe poder consultar el log de auditoría con filtros por usuario, entidad, fecha. | Administrador | M | — |
 | RF-068 | El administrador debe poder anular un registro de parqueo dejando trazabilidad (motivo, usuario, fecha/hora). | Administrador | M | BR-020, BR-024, BR-025 |
 
+## Módulo: Mensualidades
+
+| ID | Descripción | Actor | Prioridad | Reglas relacionadas |
+|---|---|---|---|---|
+| RF-074 | El administrador debe poder crear, editar y activar/desactivar mensualidades: cliente, documento, teléfono, valor mensual pactado, día de corte (1–28), notas y una o varias placas autorizadas (cada placa pertenece a una sola mensualidad). Empleados y administradores pueden consultarlas con su estado. | Administrador | S | BR-028, BR-025 |
+| RF-075 | Al registrar el ingreso de una placa autorizada, el sistema debe reconocerla como cliente mensual; si la mensualidad ya tiene otro vehículo dentro, el ingreso es de cliente normal y se avisa. | Empleado, Administrador | S | BR-029 |
+| RF-076 | La salida de un cliente mensual al día o en días de gracia se registra sin cobro ni medio de pago; vencida, sin pago o inactiva, se cobra con las tarifas normales y la pantalla lo advierte. | Empleado, Administrador | S | BR-030, BR-020 |
+| RF-077 | El pago mensual se cobra en la caja abierta con un medio de pago, por el valor pactado; extiende la vigencia hasta el siguiente corte, cuenta en el arqueo y en los reportes, recibe consecutivo `OP-` y genera comprobante imprimible. | Empleado, Administrador | S | BR-031 |
+| RF-078 | El administrador debe poder consultar y exportar (Excel, PDF, CSV) un reporte de mensualidades con: estado de cartera (cliente, placas, valor, corte, pagada hasta, estado y días de mora a hoy, pagado en el período), detalle de pagos del período (fecha, OP-, período cubierto, valor, medio de pago, quién cobró) e indicadores (recaudo, conteo por estado, cartera vencida estimada); filtrable por rango de fechas, estados (varios) y cliente/documento/placa. | Administrador | S | BR-028, BR-031 |
+
 ## Módulo: PWA / Plataforma
 
 | ID | Descripción | Actor | Prioridad | Reglas relacionadas |
@@ -152,3 +163,4 @@
 | RF-069 | La aplicación debe poder instalarse como PWA (manifest + iconos + service worker). | — | M | BR-019 |
 | RF-070 | La aplicación debe mostrar el shell básico de la interfaz aun con pérdida temporal de conectividad. | — | M | BR-019 |
 | RF-071 | El backend debe exponer un endpoint de health check. | — | M | — |
+| RF-073 | El administrador debe poder exportar la base de datos completa a un archivo JSON portable (SQLite o MySQL) e importarlo en otra ejecución, reemplazando todos los datos de forma atómica, solo si la versión del esquema coincide y el respaldo tiene al menos un administrador activo. Ambas acciones quedan auditadas. | Administrador | S | BR-025 |

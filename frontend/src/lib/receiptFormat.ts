@@ -1,6 +1,9 @@
 import type { ReceiptFormat } from '../api/types'
 
-/** RF-015: por defecto el comprobante muestra todo, sin pie de página. */
+/**
+ * RF-015: por defecto el comprobante muestra todo, sin pie de página. Impresión: al ingreso
+ * desactivada (no cambia el flujo de ingreso rápido) y a la salida activada (comportamiento previo).
+ */
 export const DEFAULT_RECEIPT_FORMAT: ReceiptFormat = {
   showNit: true,
   showAddress: true,
@@ -9,6 +12,8 @@ export const DEFAULT_RECEIPT_FORMAT: ReceiptFormat = {
   showTariff: true,
   showDuration: true,
   footer: '',
+  printOnEntry: false,
+  printOnExit: true,
 }
 
 /** Lee Configuration.receiptFormatJson; un valor ausente o inválido cae en los valores por defecto. */
@@ -24,6 +29,8 @@ export function parseReceiptFormat(json: string | null | undefined): ReceiptForm
       showTariff: parsed.showTariff ?? true,
       showDuration: parsed.showDuration ?? true,
       footer: typeof parsed.footer === 'string' ? parsed.footer : '',
+      printOnEntry: parsed.printOnEntry ?? false,
+      printOnExit: parsed.printOnExit ?? true,
     }
   } catch {
     return DEFAULT_RECEIPT_FORMAT

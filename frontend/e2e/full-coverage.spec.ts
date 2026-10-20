@@ -101,3 +101,52 @@ test.describe('Funcionalidades administrativas completas', () => {
     await expect(page.getByText('Parqueo anulado').first()).toBeVisible()
   })
 })
+
+/**
+ * RF-072 / RF-015: con "Imprimir comprobante al registrar el ingreso" activado, tras el ingreso se
+ * ofrece el comprobante con consecutivo ING. Solo en desktop: cambia la configuración compartida y el
+ * proyecto mobile corre en paralelo; al final se restaura el valor previo.
+ */
+test.describe('Comprobante de ingreso', () => {
+  test.skip(({ isMobile }) => isMobile, 'Modifica la configuración global; se ejecuta una sola vez (desktop).')
+
+  async function setPrintOnEntry(page: Page, enabled: boolean) {
+    await page.goto('/configuracion')
+    const checkbox = page.getByLabel('Al registrar el ingreso')
+    await expect(checkbox).toBeVisible()
+    const wasChecked = await checkbox.isChecked()
+    if (wasChecked !== enabled) {
+      await checkbox.setChecked(enabled)
+      await page.getByRole('button', { name: 'Guardar cambios' }).click()
+      await expect(page.getByText('Configuración guardada')).toBeVisible()
+    }
+    return wasChecked
+  }
+
+  test('ingreso -> botón Imprimir comprobante -> comprobante con número ING', async ({ page }) => {
+    const plate = uniquePlate('ING')
+    await login(page)
+    const previous = await setPrintOnEntry(page, true)
+    try {
+      await page.goto('/ingreso')
+      await page.getByPlaceholder('ABC123').fill(plate)
+      await page.getByRole('button', { name: 'Automóvil' }).click()
+      await page.getByRole('button', { name: 'Confirmar ingreso' }).click()
+      await page.getByRole('button', { name: 'Imprimir comprobante' }).click()
+
+      const receipt = page.getByRole('article', { name: 'Comprobante de ingreso' })
+      await expect(receipt).toBeVisible()
+      await expect(receipt.getByText(plate)).toBeVisible()
+      await expect(receipt.getByText(/ING-\d{6}/)).toBeVisible()
+      await expect(receipt.getByText('Conserve este comprobante para retirar su vehículo.')).toBeVisible()
+
+      // Reimpresión desde Historial.
+      await page.goto('/historial')
+      await page.getByLabel('Placa').fill(plate)
+      await page.getByRole('button', { name: 'Buscar' }).click()
+      await expect(page.getByRole('listitem').filter({ hasText: plate }).getByRole('button', { name: 'Comprobante de ingreso' })).toBeVisible()
+    } finally {
+      await setPrintOnEntry(page, previous)
+    }
+  })
+})

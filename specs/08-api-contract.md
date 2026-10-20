@@ -18,7 +18,8 @@ Convenciones: autenticación por cookie de sesión (`10-security-specification.m
 |---|---|---|---|
 | GET | `/api/parking-sessions/active` | Admin, Empleado | Lista sesiones `EN_PARQUEADERO` (soporta `?plate=` para búsqueda). |
 | POST | `/api/parking-sessions` | Empleado | Registra ingreso (RF-023). `409` si ya existe sesión activa para la placa (BR-001). |
-| GET | `/api/parking-sessions/{id}` | Admin, Empleado | Detalle de una sesión. |
+| GET | `/api/parking-sessions/{id}` | Admin, Empleado | Detalle de una sesión (incluye `entryNumber`). |
+| GET | `/api/parking-sessions/{id}/entry-receipt` | Admin, Empleado | Datos del comprobante de ingreso (RF-072): parqueadero, `entryNumber`, placa, tipo, fecha/hora, empleado, observaciones, estado. Cualquier estado (reimpresión). `404` si no existe. |
 | GET | `/api/parking-sessions` | Admin | Historial con filtros `?from=&to=&plate=&status=&employeeId=` (RF-058). `from`/`to` obligatorios (fecha de ingreso); responde `{items, truncated}` con máximo 500 resultados. |
 | POST | `/api/parking-sessions/{id}/quote` | Admin, Empleado | Calcula (sin registrar) el valor a cobrar si la sesión cerrara "ahora" — usado por la pantalla de salida antes de confirmar (UC-004 paso 3-4). Los campos de primer nivel son la tarifa sugerida; `options` lista todas las aplicables (sugerida primero, `suggested: true`) con su valor (BR-008.1). |
 | POST | `/api/parking-sessions/{id}/checkout` | Empleado | Registra salida + cobro en una sola operación transaccional (RF-034 a RF-042). Body incluye `paymentMethodId`, `chargedAmount` y, opcional, `tariffId` (tarifa alterna elegida; omitido = la sugerida). `409` si ya está finalizada/anulada, `TARIFF_NOT_APPLICABLE` si la tarifa elegida no aplica a la sesión, o `CHARGED_AMOUNT_MISMATCH` si `chargedAmount` no es exactamente el valor calculado en ese momento (volver a cotizar). |
@@ -63,7 +64,32 @@ Convenciones: autenticación por cookie de sesión (`10-security-specification.m
 | GET | `/api/dashboard` | Admin | Indicadores de RF-064/RF-065. |
 | GET | `/api/reports/daily?date=` | Admin | Reporte diario. |
 | GET | `/api/reports/summary?from=&to=` | Admin | Reporte semanal/mensual/personalizado (mismo endpoint parametrizado por rango). |
+| GET | `/api/reports/subscriptions?from=&to=&status=AL_DIA,VENCIDA&q=` | Admin | Reporte de mensualidades (RF-078): `portfolio` (cartera con estado y `daysOverdue` a hoy, pagado en el período), `payments` (cobros del período), `collected`, `paymentsCount`, `activeCount`, `countByStatus`, `overdueAmount`. `status` acepta varios separados por coma (vacío = todos); `q` busca por cliente, documento o placa. `400` si un estado es inválido o `from > to`. |
+| GET | `/api/reports/subscriptions/export?…&format=xlsx\|pdf\|csv` | Admin | Mismo reporte, con los mismos filtros, descargado como `reporte-mensualidades_<período>.<ext>`: Excel con hojas Resumen, Cartera y Pagos (números y autofiltro); PDF A4 apaisado; CSV por secciones. |
 | GET | `/api/reports/summary/export?from=&to=&format=xlsx\|pdf\|csv` | Admin | Descarga el mismo reporte en Excel, PDF o CSV (RF-063, `decisions/ADR-008-exportacion-reportes.md`). `Content-Disposition: attachment; filename=reporte-parqueadero_<período>.<ext>`. CSV con `;`, UTF-8 con BOM y protección contra inyección de fórmulas. `400` si el formato no es `xlsx`/`pdf`/`csv` o si `from > to`. |
+
+## Respaldo (RF-073, `decisions/ADR-009-respaldo-base-de-datos.md`)
+
+| Método | Ruta | Rol | Descripción |
+|---|---|---|---|
+| GET | `/api/admin/backup` | Admin | Descarga el respaldo completo (`parking-respaldo_<yyyy-MM-dd_HHmm>.json`): formato, versión de esquema, conteos y todas las tablas. Audita `DATABASE_EXPORTED`. |
+| POST | `/api/admin/backup/import` | Admin | Cuerpo: el JSON del respaldo. **Reemplaza todos los datos** en una transacción. `400` si el formato no es válido, la versión de esquema no coincide, faltan tablas o no hay un administrador activo (los datos no cambian). Responde `{schemaVersion, counts}`. |
+
+## Mensualidades (RF-074 a RF-077, `decisions/ADR-010-mensualidades.md`)
+
+| Método | Ruta | Rol | Descripción |
+|---|---|---|---|
+| GET | `/api/subscriptions` | Admin, Empleado | Lista con `status` (BR-028), `paidUntil`, placas y `vehicleInsidePlate`. |
+| GET | `/api/subscriptions/{id}` | Admin, Empleado | Detalle. |
+| POST | `/api/subscriptions` | Admin | Crea (`customerName`, `documentId`, `phone`, `monthlyFee`, `cutOffDay` 1–28, `notes`, `vehicles[{plate, vehicleTypeId}]`). `409 PLATE_IN_OTHER_SUBSCRIPTION`. |
+| PUT | `/api/subscriptions/{id}` | Admin | Edita (reemplaza las placas). |
+| PATCH | `/api/subscriptions/{id}/status` | Admin | `{active}`. |
+| POST | `/api/subscriptions/{id}/payments` | Admin, Empleado | Cobro mensual en la caja abierta: `{paymentMethodId, amount}`; `409 NO_OPEN_CASH_SESSION`, `CHARGED_AMOUNT_MISMATCH`, `SUBSCRIPTION_INACTIVE`. Responde el pago con `periodFrom/periodTo` y `operationNumber`. |
+| GET | `/api/subscriptions/{id}/payments` | Admin, Empleado | Historial de pagos. |
+| GET | `/api/subscription-payments/{id}/receipt` | Admin, Empleado | Datos del comprobante de mensualidad. |
+| POST | `/api/parking-sessions/{id}/exit-subscription` | Admin, Empleado | Salida sin cobro de un cliente mensual cubierto (BR-030); `409 SUBSCRIPTION_NOT_COVERING` si no lo está. |
+
+Cambios relacionados: `POST /api/parking-sessions` devuelve `subscriptionId`, `subscriptionCustomerName` y `notice` (BR-029); `POST /quote` devuelve `subscription {id, customerName, status, paidUntil, covered}` y, si está cubierta, `options` vacías y valor 0; `POST /checkout` rechaza `SUBSCRIPTION_COVERED`; `GET /api/reports/summary` agrega `subscriptionCollected`, `subscriptionPayments` y `subscriberExits` (incluidas en `totalCollected` y en los desgloses por medio de pago y empleado); `GET /api/cash-sessions/{id}/payments` agrega `kind` (`PARKING`/`SUBSCRIPTION`); `GET/PUT /api/configuration` agrega `subscriptionGraceDays`. `GET /api/dashboard`: `collectedToday` incluye las mensualidades cobradas hoy (corrección del 2026-10-20).
 
 ## Usuarios
 

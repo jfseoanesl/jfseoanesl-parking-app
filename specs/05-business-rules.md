@@ -103,7 +103,7 @@ La PWA garantiza disponibilidad offline únicamente del shell de la aplicación 
 *Parametrizable:* no. *Decisión confirmada por el usuario.*
 
 **BR-020 — Cierre obligatorio con cobro**
-No se puede marcar una sesión como `FINALIZADO` sin un pago registrado asociado, salvo que un Administrador ejecute una anulación (`ANULADO`) explícita, la cual exige motivo obligatorio y queda registrada en auditoría con el usuario, fecha/hora, y estado anterior/nuevo.
+No se puede marcar una sesión como `FINALIZADO` sin un pago registrado asociado, salvo la salida de un cliente mensual cubierto (BR-030, enmienda del 2026-10-19), o que un Administrador ejecute una anulación (`ANULADO`) explícita, la cual exige motivo obligatorio y queda registrada en auditoría con el usuario, fecha/hora, y estado anterior/nuevo.
 *Parametrizable:* no. *Origen:* prompt maestro §8.
 
 **BR-021 — Idempotencia de cobro**
@@ -139,6 +139,28 @@ Sesiones de parqueo, pagos y cierres de caja nunca se eliminan físicamente; los
 **BR-025 — Auditoría obligatoria de operaciones sensibles**
 Toda creación/edición de tarifas (el registro incluye todos los campos que afectan el cálculo —tipo de vehículo, modalidad, valor, **horario**, tolerancia, fracción, redondeo, prioridad, estado y vigencia— en el valor anterior y en el nuevo; hasta el 2026-09-29 solo se guardaban nombre, modalidad, valor, prioridad y estado; lo mismo aplica a la configuración del parqueadero, que hasta esa fecha se auditaba sin valores), cambio de la tarifa sugerida al cobrar (BR-008.1), anulación de sesión, corrección administrativa, reapertura de operación, cierre de caja y modificación de usuario genera un registro de auditoría con: usuario, acción, fecha, hora, entidad afectada, identificador, valor anterior (si aplica) y valor nuevo (si aplica).
 *Parametrizable:* no. *Origen:* prompt maestro §15.
+
+**BR-027 — Consecutivo del comprobante de ingreso**
+Cada ingreso recibe al registrarse un número `ING-` + 6 dígitos, reservado de forma atómica en la misma transacción (contador `ENTRY` de `operation_counter`), único (índice `uk_parking_session_entry_number`) y nunca reutilizado, aunque la sesión se anule. Las sesiones creadas antes de la migración V6 no tienen número (se muestran con "—").
+*Parametrizable:* no. *Origen:* solicitud del usuario (2026-10-05), RF-072.
+
+## Mensualidades (2026-10-19)
+
+**BR-028 — Estado de una mensualidad**
+Con la fecha local del parqueadero (BR-026) y `paidUntil` (último día cubierto): `AL_DIA` si hoy ≤ `paidUntil`; `EN_GRACIA` si hoy ≤ `paidUntil` + días de gracia (Configuración, por defecto 3); `VENCIDA` después; `SIN_PAGO` si nunca pagó; `INACTIVA` si el administrador la desactivó.
+*Parametrizable:* sí (días de gracia). *Origen:* solicitud del usuario.
+
+**BR-029 — Reconocimiento al ingreso**
+Si la placa normalizada (BR-002) es una placa autorizada de una mensualidad activa y esa mensualidad no tiene otro vehículo `EN_PARQUEADERO`, la sesión queda vinculada a la mensualidad. Si ya tiene uno dentro, el ingreso es de cliente normal y se informa al empleado. Una placa pertenece a una sola mensualidad.
+*Parametrizable:* no. *Origen:* solicitud del usuario.
+
+**BR-030 — Salida cubierta por mensualidad**
+Una sesión vinculada cuya mensualidad está `AL_DIA` o `EN_GRACIA` se finaliza sin cobro, sin pago y sin exigir caja abierta (`calculatedAmount = 0`, sin tarifa); el cobro normal se rechaza (`SUBSCRIPTION_COVERED`). Si está `VENCIDA`, `SIN_PAGO` o `INACTIVA`, se cobra con las tarifas vigentes y la pantalla lo advierte.
+*Parametrizable:* no. *Origen:* solicitud del usuario.
+
+**BR-031 — Cobro mensual**
+Se cobra en la caja abierta de quien cobra, con un medio de pago, por exactamente el valor pactado (`CHARGED_AMOUNT_MISMATCH` si no). Cubre desde el día siguiente a `paidUntil` (u hoy, si nunca pagó o ya venció) hasta la primera fecha con el día de corte posterior al inicio; no se prorratea. Usa el mismo consecutivo `OP-` que los cobros de salida, suma en el arqueo y en los reportes y deja un movimiento de caja.
+*Parametrizable:* no. *Origen:* solicitud del usuario.
 
 ## Zona horaria y tiempo
 

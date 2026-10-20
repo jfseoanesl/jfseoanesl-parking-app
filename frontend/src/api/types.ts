@@ -35,6 +35,13 @@ export interface ParkingSession {
   calculatedAmount: number | null
   notes: string | null
   cancelReason: string | null
+  /** Consecutivo del comprobante de ingreso (BR-027); null en sesiones anteriores. */
+  entryNumber: string | null
+  /** BR-029: mensualidad que cubre la sesión (null = cliente normal). */
+  subscriptionId: string | null
+  subscriptionCustomerName: string | null
+  /** Solo al registrar el ingreso: aviso de mensualidad. */
+  notice?: string | null
 }
 
 /** Una tarifa aplicable a la sesion, ya calculada (BR-008.1). */
@@ -49,12 +56,23 @@ export interface TariffOption {
 
 /** Los campos de primer nivel son la tarifa sugerida; `options` incluye todas las aplicables. */
 export interface TariffQuote {
-  tariffId: string
-  tariffName: string
-  modality: string
+  /** null cuando la salida está cubierta por una mensualidad (BR-030). */
+  tariffId: string | null
+  tariffName: string | null
+  modality: string | null
   elapsedMinutes: number
   calculatedAmount: number
   options: TariffOption[]
+  /** BR-030: mensualidad de la sesión; si covered, la salida no se cobra. */
+  subscription: SubscriptionCoverage | null
+}
+
+export interface SubscriptionCoverage {
+  id: string
+  customerName: string
+  status: SubscriptionStatus
+  paidUntil: string | null
+  covered: boolean
 }
 
 export interface CheckoutResult {
@@ -143,6 +161,7 @@ export interface ParkingConfiguration {
   timezone: string
   currency: string
   receiptFormatJson: string | null
+  subscriptionGraceDays: number
 }
 
 export type PaymentMethodCategory = 'CASH' | 'ELECTRONIC' | 'OTHER'
@@ -162,6 +181,9 @@ export interface Report {
   collectedByEmployee: Record<string, number>
   cancelledSessions: number
   cashDifferencesSum: number
+  subscriptionCollected: number
+  subscriptionPayments: number
+  subscriberExits: number
 }
 
 export interface RecentMovement {
@@ -211,6 +233,8 @@ export interface HistoryItem {
   paymentId: string | null
   notes: string | null
   cancelReason: string | null
+  entryNumber: string | null
+  subscriptionCustomerName: string | null
 }
 
 export interface HistoryPage {
@@ -228,6 +252,8 @@ export interface CashOperation {
   chargedAmount: number
   paymentMethodName: string | null
   tariffName: string | null
+  /** PARKING = cobro de salida; SUBSCRIPTION = pago de mensualidad. */
+  kind: 'PARKING' | 'SUBSCRIPTION'
 }
 
 /** RF-057: caja cerrada, candidata a corrección administrativa (GET /cash-sessions). */
@@ -272,4 +298,112 @@ export interface ReceiptFormat {
   showTariff: boolean
   showDuration: boolean
   footer: string
+  /** Ofrecer imprimir comprobante al registrar el ingreso (RF-072). */
+  printOnEntry: boolean
+  /** Ofrecer imprimir comprobante al registrar la salida/cobro (RF-050). */
+  printOnExit: boolean
+}
+
+/** RF-072: datos del comprobante de ingreso (GET /parking-sessions/{id}/entry-receipt). */
+export interface EntryReceipt {
+  parkingName: string | null
+  nit: string | null
+  address: string | null
+  phone: string | null
+  entryNumber: string | null
+  plate: string
+  vehicleTypeName: string | null
+  entryDateTime: string
+  employeeName: string | null
+  notes: string | null
+  status: ParkingStatus
+}
+
+/** RF-074 a RF-077: mensualidades. */
+export type SubscriptionStatus = 'AL_DIA' | 'EN_GRACIA' | 'VENCIDA' | 'SIN_PAGO' | 'INACTIVA'
+
+export interface Subscription {
+  id: string
+  customerName: string
+  documentId: string | null
+  phone: string | null
+  monthlyFee: number
+  cutOffDay: number
+  paidUntil: string | null
+  active: boolean
+  notes: string | null
+  status: SubscriptionStatus
+  vehicleInsidePlate: string | null
+  vehicles: { plate: string; vehicleTypeId: string }[]
+}
+
+export interface SubscriptionPayment {
+  id: string
+  subscriptionId: string
+  operationNumber: string
+  amount: number
+  periodFrom: string
+  periodTo: string
+  paymentMethodId: string
+  paidAt: string
+}
+
+export interface SubscriptionReceipt {
+  parkingName: string | null
+  nit: string | null
+  address: string | null
+  phone: string | null
+  operationNumber: string
+  customerName: string
+  documentId: string | null
+  plates: string[]
+  periodFrom: string
+  periodTo: string
+  amount: number
+  paymentMethodName: string | null
+  employeeName: string | null
+  paidAt: string
+}
+
+/** RF-078: reporte de mensualidades (GET /reports/subscriptions). */
+export interface SubscriptionPortfolioRow {
+  subscriptionId: string
+  customerName: string
+  documentId: string | null
+  phone: string | null
+  plates: string[]
+  monthlyFee: number
+  cutOffDay: number
+  paidUntil: string | null
+  status: SubscriptionStatus
+  daysOverdue: number | null
+  paidInPeriod: number
+  paymentsInPeriod: number
+  vehicleInsidePlate: string | null
+}
+
+export interface SubscriptionReportPaymentRow {
+  paymentId: string
+  paidAt: string
+  operationNumber: string
+  customerName: string
+  documentId: string | null
+  periodFrom: string
+  periodTo: string
+  amount: number
+  paymentMethodName: string
+  employeeName: string
+}
+
+export interface SubscriptionReport {
+  from: string
+  to: string
+  today: string
+  collected: number
+  paymentsCount: number
+  activeCount: number
+  countByStatus: Record<SubscriptionStatus, number>
+  overdueAmount: number
+  portfolio: SubscriptionPortfolioRow[]
+  payments: SubscriptionReportPaymentRow[]
 }

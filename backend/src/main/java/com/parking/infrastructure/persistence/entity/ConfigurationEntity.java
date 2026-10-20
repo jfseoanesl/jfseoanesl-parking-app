@@ -52,4 +52,7 @@ public class ConfigurationEntity {
 
     @Column(name = "updated_by", length = 36)
     private String updatedBy;
+
+    @Column(name = "subscription_grace_days", nullable = false)
+    private int subscriptionGraceDays;
 }

@@ -101,6 +101,24 @@ npm run dev
 
 Copia `.env.example` a `.env`, complétalo, y arranca con `SPRING_PROFILES_ACTIVE=production`. Procedimiento completo y verificado (Fase 12): `specs/decisions/ADR-006-migracion-mysql.md`. Ver también "Despliegue con Docker" abajo para el camino contenedorizado equivalente.
 
+## Mensualidades
+
+Menú **Mensualidades**:
+- El administrador crea cada mensualidad con el cliente, el valor mensual, el día de corte (1–28) y las placas autorizadas.
+- Cualquier usuario con caja abierta cobra el mes con **Registrar pago**. El pago queda en el arqueo y genera un comprobante.
+- Al ingresar una placa autorizada, la app la reconoce como cliente mensual. Mientras la mensualidad esté al día o en días de gracia (Configuración → *Días de gracia de mensualidades*), la salida se registra **sin cobro**.
+
+Detalle: `specs/decisions/ADR-010-mensualidades.md`.
+
+## Respaldo y traslado de datos a otra instalación
+
+Como administrador, en **Respaldo** (menú lateral):
+1. **Descargar respaldo**: genera `parking-respaldo_<fecha>.json` con todos los datos. Contiene usuarios, cobros y auditoría, así que hay que guardarlo en un lugar seguro.
+2. En la otra instalación, que debe tener la **misma versión** de la aplicación (puede ser SQLite o MySQL), entra como administrador, ve a **Respaldo → Importar**, elige el archivo, revisa el resumen y confirma escribiendo `REEMPLAZAR`.
+3. Todos los datos de esa instalación se reemplazan. Si algo falla, no cambia nada. Se cierra la sesión y se entra con los usuarios del respaldo.
+
+Detalle técnico: `specs/decisions/ADR-009-respaldo-base-de-datos.md`.
+
 ## Despliegue con Docker
 
 Requiere Docker y Docker Compose. Hay dos stacks, uno para cada perfil del backend. Usan puertos y nombres de proyecto distintos (`parking` y `parking-prod`), así que pueden correr a la vez.
@@ -133,5 +151,36 @@ docker compose -f docker-compose.prod.yml up --build -d
 - Arranque de producción resuelto después (ADR-007): datos de referencia (V4) y primer administrador desde el entorno. Suite del backend: 62/62 en ambos motores.
 - Para repetir la verificación del código contra MySQL (requiere Docker): `bash scripts/verify-mysql.sh`.
 - Las diferencias de motor viven en `backend/src/main/resources/db/vendor/{motor}` (Flyway `classpath:db/vendor/{vendor}`). Hoy solo MySQL tiene una (`V3_1`: 18 llaves foráneas que MySQL ignoraba y fechas `DATETIME(6)`).
+
+## CI/CD (GitHub Actions → Docker Hub)
+
+El flujo `.github/workflows/ci-cd.yml` corre en cada push y pull request a `master`:
+
+1. **Pruebas**, en paralelo:
+   - backend sobre SQLite (`mvn test`);
+   - backend sobre MySQL 8.4 (`scripts/verify-mysql.sh`);
+   - frontend: tipos, Vitest y build.
+2. **Imágenes**, solo si las pruebas pasan: construye [`jfseoanesl/parking-backend`](https://hub.docker.com/r/jfseoanesl/parking-backend) y [`jfseoanesl/parking-frontend`](https://hub.docker.com/r/jfseoanesl/parking-frontend).
+
+| Evento | Qué publica en Docker Hub |
+|---|---|
+| Pull request | Nada (solo construye las imágenes para validar los Dockerfiles) |
+| Push a `master` | `:latest` y `:sha-<commit>` |
+| Tag `vX.Y.Z` (ej. `git tag v1.2.0 && git push origin v1.2.0`) | `:1.2.0`, `:1.2` y `:latest` |
+| Ejecución manual (Actions → CI/CD → Run workflow) | `:sha-<commit>` |
+
+**Configuración, una sola vez**, en GitHub → *Settings → Secrets and variables → Actions*:
+- El usuario y namespace de Docker Hub (`jfseoanesl`) está fijo en el workflow (`env.DOCKERHUB_NAMESPACE`); no es secreto.
+- Secreto `DOCKERHUB_TOKEN`: un *Access Token* de Docker Hub de la cuenta **jfseoanesl** (*Account settings → Personal access tokens*) con permiso **Read & Write**. No uses tu contraseña.
+
+**Desplegar con las imágenes publicadas**, sin compilar en el servidor; usa el mismo `.env` de producción:
+
+```bash
+export IMAGE_TAG=1.2.0   # o latest / sha-<commit>; imágenes jfseoanesl/parking-*
+docker compose -f docker-compose.prod.yml -f docker-compose.hub.yml pull
+docker compose -f docker-compose.prod.yml -f docker-compose.hub.yml up -d --no-build
+```
+
+Detalle: `specs/decisions/ADR-011-ci-cd.md`.
 
 Ambos stacks se verificaron manualmente en esta sesión: build de las dos imágenes, arranque con healthchecks en verde, login a través del proxy de nginx (mismo mecanismo de doble envío CSRF que en desarrollo; esa verificación se hizo con curl, sin cabecera `Origin`, y no detectó que el navegador recibía 403 — corregido después en `frontend/nginx.conf`, ver "Rediseño UI/UX"), fallback de rutas de la SPA (`/reportes` sin recargar), PWA (`manifest.webmanifest`/`sw.js` servidos) y persistencia de datos de SQLite tras reiniciar el contenedor del backend.

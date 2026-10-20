@@ -14,6 +14,18 @@ describe('parseReceiptFormat', () => {
     expect(format.showTariff).toBe(true)
     expect(format.footer).toBe('Gracias')
   })
+
+  it('impresión: por defecto no se ofrece al ingreso y sí a la salida', () => {
+    expect(parseReceiptFormat(null)).toMatchObject({ printOnEntry: false, printOnExit: true })
+    expect(parseReceiptFormat('{"showNit":true}')).toMatchObject({ printOnEntry: false, printOnExit: true })
+  })
+
+  it('impresión: respeta las opciones guardadas por el administrador', () => {
+    expect(parseReceiptFormat('{"printOnEntry":true,"printOnExit":false}')).toMatchObject({
+      printOnEntry: true,
+      printOnExit: false,
+    })
+  })
 })
 
 describe('localIsoDate', () => {

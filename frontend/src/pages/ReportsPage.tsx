@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Ban, Banknote, CircleArrowDown, CircleCheck, Clock, FileSpreadsheet, FileText, Sheet, Scale, TrendingUp } from 'lucide-react'
+import { Ban, Banknote, CalendarCheck, CircleArrowDown, CircleCheck, Clock, FileSpreadsheet, FileText, Sheet, Scale, TrendingUp } from 'lucide-react'
 import { api, ApiError } from '../api/client'
 import type { Report } from '../api/types'
 import { formatCurrency, formatDate, formatElapsed, localIsoDate } from '../lib/format'
@@ -8,54 +8,39 @@ import { Alert, EmptyState, Skeleton } from '../components/Feedback'
 import { SegmentedControl, TextField } from '../components/Form'
 import { Card, PageHeader, StatCard } from '../components/Layout'
 import { useToast } from '../components/Toast'
+import { saveBlob } from '../lib/download'
+import { PRESETS, rangeForPreset, type Preset } from '../lib/reportPeriod'
+import SubscriptionReport from '../components/reports/SubscriptionReport'
 
-type Preset = 'daily' | 'weekly' | 'monthly' | 'custom'
 type ExportFormat = 'xlsx' | 'pdf' | 'csv'
 
-/** Descarga un Blob con su nombre (solo navegador: la app es una PWA). */
-function saveBlob(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = filename
-  document.body.appendChild(link)
-  link.click()
-  link.remove()
-  URL.revokeObjectURL(url)
-}
+type ReportView = 'general' | 'subscriptions'
 
-const PRESETS: { value: Preset; label: string }[] = [
-  { value: 'daily', label: 'Diario' },
-  { value: 'weekly', label: 'Semanal' },
-  { value: 'monthly', label: 'Mensual' },
-  { value: 'custom', label: 'Rango' },
-]
-
-function isoDate(d: Date): string {
-  return localIsoDate(d)
-}
-
-function rangeForPreset(preset: Preset, customFrom: string, customTo: string): { from: string; to: string } {
-  const today = new Date()
-  if (preset === 'daily') return { from: isoDate(today), to: isoDate(today) }
-  if (preset === 'weekly') {
-    const from = new Date(today)
-    from.setDate(from.getDate() - 6)
-    return { from: isoDate(from), to: isoDate(today) }
-  }
-  if (preset === 'monthly') {
-    const from = new Date(today)
-    from.setDate(from.getDate() - 29)
-    return { from: isoDate(from), to: isoDate(today) }
-  }
-  return { from: customFrom, to: customTo }
-}
-
-/** UC-010 (RF-060 a RF-063). Wireframe: 09-ux-specification.md §5.8. */
+/** UC-010 (RF-060 a RF-063) y reporte de mensualidades (RF-078). Wireframe: 09-ux-specification.md §5.8. */
 export default function ReportsPage() {
+  const [view, setView] = useState<ReportView>('general')
+  return (
+    <div>
+      <div className="mb-4">
+        <SegmentedControl
+          label="Tipo de reporte"
+          options={[
+            { value: 'general', label: 'General' },
+            { value: 'subscriptions', label: 'Mensualidades' },
+          ]}
+          value={view}
+          onChange={setView}
+        />
+      </div>
+      {view === 'general' ? <GeneralReport /> : <SubscriptionReport />}
+    </div>
+  )
+}
+
+function GeneralReport() {
   const [preset, setPreset] = useState<Preset>('daily')
-  const [customFrom, setCustomFrom] = useState(isoDate(new Date()))
-  const [customTo, setCustomTo] = useState(isoDate(new Date()))
+  const [customFrom, setCustomFrom] = useState(localIsoDate())
+  const [customTo, setCustomTo] = useState(localIsoDate())
   const [report, setReport] = useState<Report | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -183,6 +168,19 @@ export default function ReportsPage() {
                 value={formatCurrency(report.cashDifferencesSum)}
                 icon={<Scale aria-hidden className="size-5" />}
                 tone={report.cashDifferencesSum === 0 ? 'neutral' : report.cashDifferencesSum < 0 ? 'danger' : 'warning'}
+              />
+              {/* BR-031 / BR-030: incluidas en el total recaudado. */}
+              <StatCard
+                label={`Mensualidades (${report.subscriptionPayments})`}
+                value={formatCurrency(report.subscriptionCollected)}
+                icon={<CalendarCheck aria-hidden className="size-5" />}
+                tone="neutral"
+              />
+              <StatCard
+                label="Salidas de clientes mensuales"
+                value={report.subscriberExits}
+                icon={<CalendarCheck aria-hidden className="size-5" />}
+                tone="neutral"
               />
             </div>
 

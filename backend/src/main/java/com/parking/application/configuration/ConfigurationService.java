@@ -32,18 +32,23 @@ public class ConfigurationService {
 
     public record ConfigurationInput(String parkingName, String nit, String address, String phone,
                                       Integer maxCapacity, String timezone, String currency,
-                                      String receiptFormatJson) {
+                                      String receiptFormatJson, Integer subscriptionGraceDays) {
     }
 
     @Transactional
     public Configuration update(ConfigurationInput input, String actorId) {
         validateReceiptFormat(input.receiptFormatJson());
+        if (input.subscriptionGraceDays() != null
+                && (input.subscriptionGraceDays() < 0 || input.subscriptionGraceDays() > 31)) {
+            throw new IllegalArgumentException("Los días de gracia de las mensualidades deben estar entre 0 y 31");
+        }
         Configuration existing = get();
         Configuration updated = new Configuration(existing.id(), input.parkingName(), input.nit(),
                 input.address(), input.phone(), input.maxCapacity(),
                 input.timezone() != null ? input.timezone() : existing.timezone(),
                 input.currency() != null ? input.currency() : existing.currency(), input.receiptFormatJson(),
-                timeProvider.now(), actorId);
+                timeProvider.now(), actorId,
+                input.subscriptionGraceDays() != null ? input.subscriptionGraceDays() : existing.subscriptionGraceDays());
         Configuration saved = configurationRepository.save(updated);
 
         // BR-025: valor anterior y nuevo de todos los campos (antes se registraba null/null y no se
@@ -79,6 +84,7 @@ public class ConfigurationService {
                 + ",\"maxCapacity\":" + num(c.maxCapacity())
                 + ",\"timezone\":" + str(c.timezone())
                 + ",\"currency\":" + str(c.currency())
-                + ",\"receiptFormatJson\":" + str(c.receiptFormatJson()) + "}";
+                + ",\"receiptFormatJson\":" + str(c.receiptFormatJson())
+                + ",\"subscriptionGraceDays\":" + c.subscriptionGraceDays() + "}";
     }
 }

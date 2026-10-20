@@ -203,6 +203,23 @@ Entidad de **fila única** (singleton lógico) por instalación.
 
 ---
 
+### Subscription (RF-074, 2026-10-19)
+
+| Campo | Tipo | Restricciones |
+|---|---|---|
+| id | UUID | PK |
+| customerName | string | no nulo |
+| documentId, phone, notes | string | nulos |
+| monthlyFee | decimal | > 0 |
+| cutOffDay | int | 1–28 |
+| paidUntil | date | nulo = nunca pagó |
+| active | boolean | no nulo |
+| vehicles | SubscriptionVehicle[] | al menos una; `plate` única global |
+
+**SubscriptionPayment**: `subscriptionId`, `cashSessionId`, `paymentMethodId`, `userId`, `amount`, `periodFrom`, `periodTo`, `operationNumber` (único, consecutivo OP compartido), `paidAt`. **ParkingSession.subscriptionId** (nulo = cliente normal). Invariantes: BR-028 a BR-031.
+
+---
+
 ## Relaciones (resumen)
 
 ```

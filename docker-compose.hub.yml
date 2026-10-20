@@ -1,0 +1,18 @@
+# Despliegue con las imágenes publicadas en Docker Hub por el flujo CI/CD (.github/workflows/ci-cd.yml),
+# sin compilar en el servidor. Se combina con el stack de producción:
+#
+#   IMAGE_TAG=1.2.3 docker compose -f docker-compose.prod.yml -f docker-compose.hub.yml pull
+#   IMAGE_TAG=1.2.3 docker compose -f docker-compose.prod.yml -f docker-compose.hub.yml up -d --no-build
+#
+# IMAGE_TAG: latest (último master), sha-<commit> o una versión X.Y.Z. DOCKERHUB_NAMESPACE (por
+# defecto jfseoanesl) solo hace falta para usar imágenes de otra cuenta. El frontend espera que el
+# servicio del backend se llame "backend" (nginx.conf: proxy_pass http://backend:8080).
+
+services:
+  backend:
+    image: ${DOCKERHUB_NAMESPACE:-jfseoanesl}/parking-backend:${IMAGE_TAG:-latest}
+    pull_policy: always
+
+  frontend:
+    image: ${DOCKERHUB_NAMESPACE:-jfseoanesl}/parking-frontend:${IMAGE_TAG:-latest}
+    pull_policy: always

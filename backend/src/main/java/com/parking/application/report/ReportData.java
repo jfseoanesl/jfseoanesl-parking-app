@@ -18,6 +18,11 @@ public record ReportData(
         Integer peakHour,
         Map<String, BigDecimal> collectedByEmployee,
         long cancelledSessions,
-        BigDecimal cashDifferencesSum
+        BigDecimal cashDifferencesSum,
+        /** BR-031: mensualidades cobradas en el periodo (incluidas en totalCollected). */
+        BigDecimal subscriptionCollected,
+        long subscriptionPayments,
+        /** BR-030: salidas sin cobro de clientes mensuales. */
+        long subscriberExits
 ) {
 }

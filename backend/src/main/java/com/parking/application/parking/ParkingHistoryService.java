@@ -54,7 +54,10 @@ public class ParkingHistoryService {
             String operationNumber,
             String paymentId,
             String notes,
-            String cancelReason
+            String cancelReason,
+            String entryNumber,
+            /** BR-029: cliente de la mensualidad que cubrió la sesión (null = cliente normal). */
+            String subscriptionCustomerName
     ) {
     }
 
@@ -67,10 +70,13 @@ public class ParkingHistoryService {
     private final UserRepository userRepository;
     private final TariffRepository tariffRepository;
     private final TimeProvider timeProvider;
+    private final com.parking.domain.repository.SubscriptionRepository subscriptionRepository;
 
     public ParkingHistoryService(ParkingSessionRepository parkingSessionRepository, PaymentRepository paymentRepository,
                                 VehicleTypeRepository vehicleTypeRepository, UserRepository userRepository,
-                                TariffRepository tariffRepository, TimeProvider timeProvider) {
+                                TariffRepository tariffRepository, TimeProvider timeProvider,
+                                com.parking.domain.repository.SubscriptionRepository subscriptionRepository) {
+        this.subscriptionRepository = subscriptionRepository;
         this.parkingSessionRepository = parkingSessionRepository;
         this.paymentRepository = paymentRepository;
         this.vehicleTypeRepository = vehicleTypeRepository;
@@ -113,6 +119,12 @@ public class ParkingHistoryService {
         final Map<String, Optional<User>> users = new HashMap<>();
         final Map<String, Optional<VehicleType>> vehicleTypes = new HashMap<>();
         final Map<String, Optional<Tariff>> tariffs = new HashMap<>();
+        final Map<String, Optional<com.parking.domain.model.Subscription>> subscriptions = new HashMap<>();
+
+        String subscriptionName(String id) {
+            return id == null ? null : cached(subscriptions, id, subscriptionRepository::findById)
+                    .map(com.parking.domain.model.Subscription::customerName).orElse(null);
+        }
 
         String userName(String id) {
             return id == null ? null : cached(users, id, userRepository::findById).map(User::fullName).orElse(null);
@@ -149,6 +161,6 @@ public class ParkingHistoryService {
                 payment.map(Payment::chargedAmount).orElse(null),
                 payment.map(Payment::operationNumber).orElse(null),
                 payment.map(Payment::id).orElse(null),
-                s.notes(), s.cancelReason());
+                s.notes(), s.cancelReason(), s.entryNumber(), lookups.subscriptionName(s.subscriptionId()));
     }
 }

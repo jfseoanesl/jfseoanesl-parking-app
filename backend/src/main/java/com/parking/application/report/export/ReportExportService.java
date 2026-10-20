@@ -23,10 +23,13 @@ public class ReportExportService {
     private final ReportService reportService;
     private final ConfigurationRepository configurationRepository;
     private final TimeProvider timeProvider;
+    private final com.parking.application.report.SubscriptionReportService subscriptionReportService;
     private final Map<ReportFormat, ReportExporter> exporters = new EnumMap<>(ReportFormat.class);
 
     public ReportExportService(ReportService reportService, ConfigurationRepository configurationRepository,
-                               TimeProvider timeProvider, List<ReportExporter> exporters) {
+                               TimeProvider timeProvider, List<ReportExporter> exporters,
+                               com.parking.application.report.SubscriptionReportService subscriptionReportService) {
+        this.subscriptionReportService = subscriptionReportService;
         this.reportService = reportService;
         this.configurationRepository = configurationRepository;
         this.timeProvider = timeProvider;
@@ -40,16 +43,33 @@ public class ReportExportService {
         }
         ReportData data = reportService.generate(from, to);
 
+        ReportHeader header = header(generatedBy);
+        String period = from.equals(to) ? from.toString() : from + "_" + to;
+        String filename = "reporte-parqueadero_" + period + "." + format.extension();
+        return new ExportedReport(filename, format.contentType(), exporter.export(data, header));
+    }
+
+    /** RF-078: reporte de mensualidades con los mismos filtros que la pantalla. */
+    public ExportedReport exportSubscriptions(com.parking.application.report.SubscriptionReportService.Filter filter,
+                                              ReportFormat format, String generatedBy) {
+        ReportExporter exporter = exporters.get(format);
+        if (exporter == null) {
+            throw new IllegalArgumentException("Formato de exportación no disponible: " + format.extension());
+        }
+        var report = subscriptionReportService.generate(filter);
+        var content = SubscriptionReportContent.from(report, filter, timeProvider.zone());
+        String period = filter.from().equals(filter.to()) ? filter.from().toString() : filter.from() + "_" + filter.to();
+        return new ExportedReport("reporte-mensualidades_" + period + "." + format.extension(), format.contentType(),
+                exporter.exportTables(content, header(generatedBy)));
+    }
+
+    private ReportHeader header(String generatedBy) {
         Configuration config = configurationRepository.find().orElse(null);
-        ReportHeader header = new ReportHeader(
+        return new ReportHeader(
                 config != null ? config.parkingName() : "Parqueadero",
                 config != null ? config.nit() : null,
                 config != null ? config.currency() : "COP",
                 generatedBy,
                 timeProvider.now().atZone(timeProvider.zone()));
-
-        String period = from.equals(to) ? from.toString() : from + "_" + to;
-        String filename = "reporte-parqueadero_" + period + "." + format.extension();
-        return new ExportedReport(filename, format.contentType(), exporter.export(data, header));
     }
 }

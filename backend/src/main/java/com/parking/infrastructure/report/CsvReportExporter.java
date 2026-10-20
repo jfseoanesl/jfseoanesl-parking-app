@@ -65,6 +65,39 @@ public class CsvReportExporter implements ReportExporter {
         return out.toByteArray();
     }
 
+    /** RF-078: encabezado, indicadores y una sección por tabla (línea de título + columnas). */
+    @Override
+    public byte[] exportTables(com.parking.application.report.export.TableReportContent content, ReportHeader header) {
+        StringBuilder csv = new StringBuilder();
+        line(csv, header.parkingName());
+        if (header.nit() != null && !header.nit().isBlank()) line(csv, "NIT " + header.nit());
+        line(csv, content.title());
+        line(csv, "Período", content.periodLabel());
+        for (String filter : content.filters()) line(csv, filter);
+        line(csv, "Generado por", header.generatedBy(), DATE_TIME.format(header.generatedAt()));
+        csv.append("\r\n");
+
+        line(csv, "Indicador", "Valor");
+        for (Indicator indicator : content.indicators()) {
+            line(csv, indicator.label(), indicator.kind() == Kind.TEXT
+                    ? (String) indicator.value() : number((BigDecimal) indicator.value()));
+        }
+        for (var table : content.tables()) {
+            csv.append("\r\n");
+            line(csv, table.title());
+            line(csv, table.columns().stream().map(c -> c.label()).toArray(String[]::new));
+            for (java.util.List<Object> cells : table.rows()) {
+                line(csv, cells.stream().map(v -> v == null ? "" : v instanceof BigDecimal b ? number(b) : v.toString())
+                        .toArray(String[]::new));
+            }
+        }
+
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        out.writeBytes(new byte[]{(byte) 0xEF, (byte) 0xBB, (byte) 0xBF});
+        out.writeBytes(csv.toString().getBytes(StandardCharsets.UTF_8));
+        return out.toByteArray();
+    }
+
     private static String period(ReportData data) {
         return data.from().equals(data.to()) ? DATE.format(data.from())
                 : DATE.format(data.from()) + " al " + DATE.format(data.to());

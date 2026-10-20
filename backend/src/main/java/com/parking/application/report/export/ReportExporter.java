@@ -11,4 +11,7 @@ public interface ReportExporter {
     ReportFormat format();
 
     byte[] export(ReportData data, ReportHeader header);
+
+    /** RF-078: reportes de detalle (indicadores + tablas), p. ej. el de mensualidades. */
+    byte[] exportTables(TableReportContent content, ReportHeader header);
 }

@@ -349,3 +349,33 @@ caja `CASH_SESSION_CLOSED` (RF-066), filtros de auditoría por usuario y fechas 
 También se corrigió que las fechas "hoy" del frontend usaban UTC (después de las 19:00 en Bogotá daban el día
 siguiente). Verificación: backend 90/90 en SQLite y MySQL 8.4; frontend 22/22; E2E 18/18 (+12 omitidos por
 proyecto) contra el stack Docker, con 2 flujos nuevos (`e2e/full-coverage.spec.ts`).
+
+**Comprobante de ingreso y configuración de impresión (2026-10-05):** nuevo RF-072 y BR-027. Cada ingreso recibe un
+consecutivo `ING-000001` (migración V6, contador atómico como el de los pagos). El comprobante de ingreso
+(`/comprobantes-ingreso/{id}`) muestra los datos del parqueadero, el número, la placa, el tipo de vehículo, la
+fecha y hora, las observaciones y, según el formato, el empleado que registró, además de la leyenda "Conserve
+este comprobante para retirar su vehículo". En Configuración, el administrador elige si se ofrece imprimir el
+comprobante al ingreso (por defecto no) y/o a la salida (por defecto sí, como antes); desactivado, no aparece el
+botón. Historial permite reimprimir ambos comprobantes.
+
+**Respaldo completo de la base de datos (2026-10-06):** nuevo RF-073 y ADR-009. El administrador exporta, desde
+**Respaldo**, un JSON portable con todas las tablas y lo importa en otra ejecución. La importación reemplaza todo de
+forma atómica y exige la misma versión de esquema y un administrador activo. Verificado con
+`BackupIntegrationTest` (backend 98/98 en SQLite y MySQL), pruebas unitarias del frontend (26/26), E2E 21/21 y una
+transferencia real de la instalación SQLite a una MySQL temporal, con conteos y montos idénticos.
+
+**Mensualidades (2026-10-19):** RF-074 a RF-077, BR-028 a BR-031 (enmienda de BR-020) y ADR-010.
+- El administrador crea mensualidades con el valor y el día de corte pactados y las placas autorizadas.
+- El ingreso de una placa autorizada se reconoce solo; se admite un vehículo a la vez.
+- La salida es sin cobro mientras la mensualidad esté al día o en días de gracia (configurables); vencida, se cobra con las tarifas normales.
+- El pago mensual se cobra en caja: cuenta en el arqueo y los reportes, usa el consecutivo OP y genera comprobante.
+- Migraciones V7 y V7_1 (MySQL).
+- Verificado: backend 106/106 en SQLite y MySQL y frontend 28/28.
+
+**Reporte de mensualidades (2026-10-20):** RF-078. Reportes tiene ahora una pestaña **Mensualidades**:
+- Contenido: estado de cartera (con estado y días de mora a hoy), detalle de pagos del período e indicadores (recaudo, conteo por estado, cartera vencida estimada).
+- Filtros: período, varios estados a la vez y cliente/documento/placa.
+- Exportación a Excel (hojas Resumen, Cartera y Pagos), PDF apaisado y CSV.
+- Corrección relacionada: el Dashboard ("Recaudo hoy") ya suma las mensualidades.
+- Verificado: backend 109/109 en SQLite y MySQL, frontend 30/30 y E2E 24/24.
+

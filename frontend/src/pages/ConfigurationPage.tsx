@@ -27,6 +27,7 @@ export default function ConfigurationPage() {
   const [maxCapacity, setMaxCapacity] = useState('')
   const [timezone, setTimezone] = useState('America/Bogota')
   const [currency, setCurrency] = useState('COP')
+  const [graceDays, setGraceDays] = useState('3')
   const [receiptFormat, setReceiptFormat] = useState<ReceiptFormat>(DEFAULT_RECEIPT_FORMAT)
 
   function load() {
@@ -44,6 +45,7 @@ export default function ConfigurationPage() {
         setMaxCapacity(c.maxCapacity != null ? String(c.maxCapacity) : '')
         setTimezone(c.timezone)
         setCurrency(c.currency)
+        setGraceDays(String(c.subscriptionGraceDays ?? 3))
         setReceiptFormat(parseReceiptFormat(c.receiptFormatJson))
         setVehicleTypes(vt)
         setPaymentMethods(pm)
@@ -69,6 +71,7 @@ export default function ConfigurationPage() {
         currency,
         // Se envía siempre: omitirlo borraba el formato del comprobante en cada guardado (RF-015).
         receiptFormatJson: JSON.stringify(receiptFormat),
+        subscriptionGraceDays: graceDays === '' ? null : Number(graceDays),
       })
       toast('Configuración guardada')
       load()
@@ -107,12 +110,37 @@ export default function ConfigurationPage() {
               <TextField label="Zona horaria" value={timezone} onChange={(e) => setTimezone(e.target.value)} />
               <TextField label="Moneda" value={currency} onChange={(e) => setCurrency(e.target.value)} />
             </div>
+            <TextField
+              label="Días de gracia de mensualidades"
+              type="number"
+              min="0"
+              max="31"
+              className="sm:w-72"
+              value={graceDays}
+              onChange={(e) => setGraceDays(e.target.value)}
+              hint="Días después del corte en que la salida sigue sin cobro."
+            />
 
             <fieldset className="border-t border-neutral-100 pt-4">
               <legend className="section-title">Formato del comprobante</legend>
               <p className="mt-1 text-sm text-neutral-500">Placa, fechas, operación, medio de pago y total siempre se imprimen.</p>
               <div className="mt-3 grid gap-2 sm:grid-cols-2">
                 {RECEIPT_TOGGLES.map(([key, label]) => (
+                  <label key={key} className="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg border border-neutral-200 px-3 text-sm text-neutral-700 hover:bg-neutral-50">
+                    <input
+                      type="checkbox"
+                      className="size-4 accent-primary-600"
+                      checked={receiptFormat[key]}
+                      onChange={(e) => setReceiptFormat((f) => ({ ...f, [key]: e.target.checked }))}
+                    />
+                    {label}
+                  </label>
+                ))}
+              </div>
+              <p className="mt-4 text-sm font-medium text-neutral-800">Imprimir comprobante</p>
+              <p className="text-sm text-neutral-500">Al activarlo, tras el registro aparece el botón para imprimir el comprobante.</p>
+              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                {PRINT_TOGGLES.map(([key, label]) => (
                   <label key={key} className="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg border border-neutral-200 px-3 text-sm text-neutral-700 hover:bg-neutral-50">
                     <input
                       type="checkbox"
@@ -153,7 +181,14 @@ export default function ConfigurationPage() {
   )
 }
 
-const RECEIPT_TOGGLES: [Exclude<keyof ReceiptFormat, 'footer'>, string][] = [
+type ReceiptToggle = Exclude<keyof ReceiptFormat, 'footer'>
+
+const PRINT_TOGGLES: [ReceiptToggle, string][] = [
+  ['printOnEntry', 'Al registrar el ingreso'],
+  ['printOnExit', 'Al registrar la salida (cobro)'],
+]
+
+const RECEIPT_TOGGLES: [ReceiptToggle, string][] = [
   ['showNit', 'Mostrar NIT'],
   ['showAddress', 'Mostrar dirección'],
   ['showPhone', 'Mostrar teléfono'],

@@ -4,7 +4,7 @@ import { mobileNavForRole, navForRole } from './navigation'
 describe('navForRole', () => {
   it('el empleado ve solo su menu operativo', () => {
     const items = navForRole('EMPLOYEE')
-    expect(items.map((i) => i.path)).toEqual(['/', '/ingreso', '/parqueados', '/parqueados', '/caja'])
+    expect(items.map((i) => i.path)).toEqual(['/', '/ingreso', '/parqueados', '/parqueados', '/caja', '/mensualidades'])
     expect(items.every((i) => i.implemented)).toBe(true)
   })
 
@@ -15,10 +15,10 @@ describe('navForRole', () => {
 })
 
 describe('mobileNavForRole', () => {
-  it('el empleado no tiene overflow (todo cabe como primario)', () => {
+  it('el empleado ve 4 primarios y el resto en "Mas"', () => {
     const { primary, overflow } = mobileNavForRole('EMPLOYEE')
-    expect(overflow).toHaveLength(0)
-    expect(primary.length).toBeGreaterThan(0)
+    expect(primary).toHaveLength(4)
+    expect(overflow.map((i) => i.path)).toContain('/mensualidades')
   })
 
   it('el administrador prioriza items implementados en los 4 espacios primarios', () => {

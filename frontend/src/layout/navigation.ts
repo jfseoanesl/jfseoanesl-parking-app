@@ -16,6 +16,7 @@ const EMPLOYEE_NAV: NavItem[] = [
   // inmediata desde ahi para registrar salida) - no existe una pantalla "Cobros" separada.
   { label: 'Cobros', path: '/parqueados', implemented: true },
   { label: 'Caja', path: '/caja', implemented: true },
+  { label: 'Mensualidades', path: '/mensualidades', implemented: true },
 ]
 
 const ADMIN_NAV: NavItem[] = [
@@ -26,8 +27,10 @@ const ADMIN_NAV: NavItem[] = [
   { label: 'Tarifas', path: '/tarifas', implemented: true },
   { label: 'Usuarios', path: '/usuarios', implemented: true },
   { label: 'Caja', path: '/caja', implemented: true },
+  { label: 'Mensualidades', path: '/mensualidades', implemented: true },
   { label: 'Configuración', path: '/configuracion', implemented: true },
   { label: 'Auditoría', path: '/auditoria', implemented: true },
+  { label: 'Respaldo', path: '/respaldo', implemented: true },
 ]
 
 /** Barra inferior movil del administrador: 4 mas usados + "Mas" (09-ux-specification.md §1). */
@@ -42,7 +45,8 @@ export function mobileNavForRole(role: UserSummary['role']): {
   overflow: NavItem[]
 } {
   const items = navForRole(role)
-  if (role === 'EMPLOYEE') return { primary: items, overflow: [] }
+  // Hasta 5 caben como primarios; con mas, 4 primarios + "Mas" (igual que el administrador).
+  if (items.length <= 5) return { primary: items, overflow: [] }
 
   // Prioriza items ya implementados para los 4 espacios primarios (un item deshabilitado no
   // deberia ocupar un lugar en la barra inferior mientras haya uno usable esperando en "Mas").

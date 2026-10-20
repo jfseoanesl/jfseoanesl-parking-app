@@ -50,7 +50,9 @@ export function ShiftOperations({ cashSessionId, refreshKey }: { cashSessionId: 
                 variant="ghost"
                 aria-label={`Ver comprobante ${op.operationNumber}`}
                 icon={<Receipt aria-hidden className="size-4" />}
-                onClick={() => navigate(`/comprobantes/${op.paymentId}`)}
+                onClick={() =>
+                  navigate(op.kind === 'SUBSCRIPTION' ? `/comprobantes-mensualidad/${op.paymentId}` : `/comprobantes/${op.paymentId}`)
+                }
               >
                 Comprobante
               </Button>

@@ -70,11 +70,21 @@ class SubscriptionIntegrationTest {
         return JsonPath.read(json(r), "$.id");
     }
 
-    private void ensureCashOpen(MockHttpSession session) throws Exception {
-        if (mockMvc.perform(get("/api/cash-sessions/current").session(session)).andReturn().getResponse().getStatus() == 404) {
-            assertThat(postJson(session, "/api/cash-sessions/open", "{\"initialBalance\":0}").getResponse().getStatus())
-                    .isEqualTo(201);
-        }
+    /**
+     * Cajero propio de la prueba, con su caja abierta. Las pruebas no deben dejar abierta la caja de
+     * los usuarios del seed (admin/empleado): otras clases asumen que no la tienen y el orden de
+     * ejecución cambia entre sistemas operativos (en Linux falló en CI).
+     */
+    private MockHttpSession cashier(MockHttpSession admin) throws Exception {
+        String username = "cajero" + java.util.UUID.randomUUID().toString().substring(0, 8);
+        MvcResult created = postJson(admin, "/api/users",
+                "{\"username\":\"%s\",\"fullName\":\"%s\",\"password\":\"claveSegura1\",\"role\":\"EMPLOYEE\"}"
+                        .formatted(username, username));
+        assertThat(created.getResponse().getStatus()).as(json(created)).isEqualTo(201);
+        MockHttpSession session = loginAs(username, "claveSegura1");
+        assertThat(postJson(session, "/api/cash-sessions/open", "{\"initialBalance\":0}").getResponse().getStatus())
+                .isEqualTo(201);
+        return session;
     }
 
     private String enter(MockHttpSession session, String plate, String vehicleType) throws Exception {
@@ -117,19 +127,19 @@ class SubscriptionIntegrationTest {
     void pagoEnCajaIngresoReconocidoYSalidaSinCobro() throws Exception {
         MockHttpSession admin = loginAs("admin", "admin123");
         String id = createSubscription(admin, "Cliente Dos", 120000, "MEN201", "MEN202");
-        ensureCashOpen(admin);
-        String cashId = JsonPath.read(json(mockMvc.perform(get("/api/cash-sessions/current").session(admin)).andReturn()), "$.id");
+        MockHttpSession cashier = cashier(admin);
+        String cashId = JsonPath.read(json(mockMvc.perform(get("/api/cash-sessions/current").session(cashier)).andReturn()), "$.id");
         Number cashBefore = JsonPath.read(json(mockMvc.perform(get("/api/cash-sessions/" + cashId + "/summary")
-                .session(admin)).andReturn()), "$.cashCollected");
+                .session(cashier)).andReturn()), "$.cashCollected");
         Number dashboardBefore = JsonPath.read(json(mockMvc.perform(get("/api/dashboard").session(admin)).andReturn()),
                 "$.collectedToday");
 
         // Valor distinto al pactado -> rechazo.
-        MvcResult wrong = postJson(admin, "/api/subscriptions/" + id + "/payments",
+        MvcResult wrong = postJson(cashier, "/api/subscriptions/" + id + "/payments",
                 "{\"paymentMethodId\":\"%s\",\"amount\":1000}".formatted(CASH));
         assertThat(json(wrong)).contains("CHARGED_AMOUNT_MISMATCH");
 
-        MvcResult paid = postJson(admin, "/api/subscriptions/" + id + "/payments",
+        MvcResult paid = postJson(cashier, "/api/subscriptions/" + id + "/payments",
                 "{\"paymentMethodId\":\"%s\",\"amount\":120000}".formatted(CASH));
         assertThat(paid.getResponse().getStatus()).as(json(paid)).isEqualTo(201);
         String paymentId = JsonPath.read(json(paid), "$.id");
@@ -141,13 +151,13 @@ class SubscriptionIntegrationTest {
 
         // Suma en el arqueo de la caja y aparece en las operaciones del turno.
         Number cashAfter = JsonPath.read(json(mockMvc.perform(get("/api/cash-sessions/" + cashId + "/summary")
-                .session(admin)).andReturn()), "$.cashCollected");
+                .session(cashier)).andReturn()), "$.cashCollected");
         assertThat(cashAfter.doubleValue() - cashBefore.doubleValue()).isEqualTo(120000.0);
         // El Dashboard ("Recaudo hoy") incluye la mensualidad cobrada hoy.
         Number dashboardAfter = JsonPath.read(json(mockMvc.perform(get("/api/dashboard").session(admin)).andReturn()),
                 "$.collectedToday");
         assertThat(dashboardAfter.doubleValue() - dashboardBefore.doubleValue()).isEqualTo(120000.0);
-        mockMvc.perform(get("/api/cash-sessions/" + cashId + "/payments").session(admin))
+        mockMvc.perform(get("/api/cash-sessions/" + cashId + "/payments").session(cashier))
                 .andExpect(jsonPath("$[*].kind").value(hasItem("SUBSCRIPTION")));
 
         mockMvc.perform(get("/api/subscription-payments/" + paymentId + "/receipt").session(admin))
@@ -222,10 +232,11 @@ class SubscriptionIntegrationTest {
     void elPagoExigeCajaAbierta() throws Exception {
         MockHttpSession admin = loginAs("admin", "admin123");
         String id = createSubscription(admin, "Cliente Cuatro", 40000, "MEN401");
-        MockHttpSession employee = loginAs("empleado", "empleado123");
-        if (mockMvc.perform(get("/api/cash-sessions/current").session(employee)).andReturn().getResponse().getStatus() == 200) {
-            return; // otra prueba dejó abierta la caja del empleado; el caso sin caja no aplica aquí.
-        }
+        String username = "sincaja" + java.util.UUID.randomUUID().toString().substring(0, 8);
+        assertThat(postJson(admin, "/api/users",
+                "{\"username\":\"%s\",\"fullName\":\"%s\",\"password\":\"claveSegura1\",\"role\":\"EMPLOYEE\"}"
+                        .formatted(username, username)).getResponse().getStatus()).isEqualTo(201);
+        MockHttpSession employee = loginAs(username, "claveSegura1");
         MvcResult r = postJson(employee, "/api/subscriptions/" + id + "/payments",
                 "{\"paymentMethodId\":\"%s\",\"amount\":40000}".formatted(CASH));
         assertThat(json(r)).contains("NO_OPEN_CASH_SESSION");

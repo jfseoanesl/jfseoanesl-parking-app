@@ -113,17 +113,28 @@ class EntryReceiptIntegrationTest {
     void laConfiguracionGuardaLasOpcionesDeImpresion() throws Exception {
         MockHttpSession admin = admin();
         String current = json(mockMvc.perform(get("/api/configuration").session(admin)).andReturn());
-        String parkingName = JsonPath.read(current, "$.parkingName");
-        String format = "{\\\"printOnEntry\\\":true,\\\"printOnExit\\\":false}";
+        java.util.Map<String, Object> config = new java.util.LinkedHashMap<>(JsonPath.read(current, "$"));
+        Object previousFormat = config.get("receiptFormatJson");
+        config.put("receiptFormatJson", "{\"printOnEntry\":true,\"printOnExit\":false}");
+        try {
+            mockMvc.perform(put("/api/configuration")
+                            .with(SecurityMockMvcRequestPostProcessors.csrf()).session(admin)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(new tools.jackson.databind.ObjectMapper().writeValueAsString(config)))
+                    .andExpect(status().isOk());
 
-        mockMvc.perform(put("/api/configuration")
-                        .with(SecurityMockMvcRequestPostProcessors.csrf()).session(admin)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"parkingName\":\"%s\",\"receiptFormatJson\":\"%s\"}".formatted(parkingName, format)))
-                .andExpect(status().isOk());
-
-        String saved = JsonPath.read(json(mockMvc.perform(get("/api/configuration").session(admin)).andReturn()),
-                "$.receiptFormatJson");
-        assertThat(saved).contains("\"printOnEntry\":true").contains("\"printOnExit\":false");
+            String after = json(mockMvc.perform(get("/api/configuration").session(admin)).andReturn());
+            String saved = JsonPath.read(after, "$.receiptFormatJson");
+            assertThat(saved).contains("\"printOnEntry\":true").contains("\"printOnExit\":false");
+            // El resto de la configuración no cambia.
+            assertThat((Object) JsonPath.read(after, "$.maxCapacity")).isEqualTo(config.get("maxCapacity"));
+            assertThat((Object) JsonPath.read(after, "$.nit")).isEqualTo(config.get("nit"));
+        } finally {
+            config.put("receiptFormatJson", previousFormat);
+            mockMvc.perform(put("/api/configuration")
+                    .with(SecurityMockMvcRequestPostProcessors.csrf()).session(admin)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(new tools.jackson.databind.ObjectMapper().writeValueAsString(config)));
+        }
     }
 }

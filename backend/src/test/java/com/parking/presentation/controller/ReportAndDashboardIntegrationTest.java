@@ -43,6 +43,23 @@ class ReportAndDashboardIntegrationTest {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    /**
+     * Empleado nuevo y exclusivo de la prueba (sin caja abierta). Todas las clases comparten la misma
+     * base en memoria y el orden de ejecución cambia entre sistemas operativos (en Linux falló en CI),
+     * así que ninguna prueba debe abrir ni esperar sin caja a los usuarios del seed (admin/empleado).
+     */
+    private MockHttpSession freshEmployee() throws Exception {
+        String username = "emp" + java.util.UUID.randomUUID().toString().substring(0, 8);
+        mockMvc.perform(post("/api/users")
+                        .with(SecurityMockMvcRequestPostProcessors.csrf())
+                        .session(loginAs("admin", "admin123"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"%s\",\"fullName\":\"%s\",\"password\":\"claveSegura1\",\"role\":\"EMPLOYEE\"}"
+                                .formatted(username, username)))
+                .andExpect(status().isCreated());
+        return loginAs(username, "claveSegura1");
+    }
+
     private MockHttpSession loginAs(String username, String password) throws Exception {
         MvcResult result = mockMvc.perform(post("/api/auth/login")
                         .with(SecurityMockMvcRequestPostProcessors.csrf())
@@ -121,22 +138,23 @@ class ReportAndDashboardIntegrationTest {
         JsonNode reportBefore = getJson(adminSession, "/api/reports/daily?date=" + today);
         JsonNode dashboardBefore = getJson(adminSession, "/api/dashboard");
 
-        // Caja propia para este escenario (admin no la deja abierta en ningun otro test).
+        // Caja de un empleado propio de este escenario (no depende de las demás pruebas).
+        MockHttpSession operator = freshEmployee();
         MvcResult openResult = mockMvc.perform(post("/api/cash-sessions/open")
                         .with(SecurityMockMvcRequestPostProcessors.csrf())
-                        .session(adminSession)
+                        .session(operator)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"initialBalance\":20000}"))
                 .andExpect(status().isCreated())
                 .andReturn();
         String cashSessionId = JsonPath.read(openResult.getResponse().getContentAsString(), "$.id");
 
-        registerAndCheckout(adminSession, "REP001", CASH_PAYMENT_METHOD_ID, 5000);
-        registerAndCheckout(adminSession, "REP002", TRANSFER_PAYMENT_METHOD_ID, 3000);
+        registerAndCheckout(operator, "REP001", CASH_PAYMENT_METHOD_ID, 5000);
+        registerAndCheckout(operator, "REP002", TRANSFER_PAYMENT_METHOD_ID, 3000);
 
         MvcResult entry3 = mockMvc.perform(post("/api/parking-sessions")
                         .with(SecurityMockMvcRequestPostProcessors.csrf())
-                        .session(adminSession)
+                        .session(operator)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(("{\"plate\":\"REP003\",\"vehicleTypeId\":\"%s\"}").formatted(CAR_VEHICLE_TYPE_ID)))
                 .andExpect(status().isCreated())
@@ -154,7 +172,7 @@ class ReportAndDashboardIntegrationTest {
         // diferencia de +500 y asi verificar cashDifferencesSum.
         mockMvc.perform(post("/api/cash-sessions/" + cashSessionId + "/close")
                         .with(SecurityMockMvcRequestPostProcessors.csrf())
-                        .session(adminSession)
+                        .session(operator)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"reportedCash\":25500}"))
                 .andExpect(status().isOk());

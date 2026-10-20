@@ -31,6 +31,23 @@ class CashSessionCloseIntegrationTest {
     @Autowired
     private MockMvc mockMvc;
 
+    /**
+     * Empleado nuevo y exclusivo de la prueba (sin caja abierta). Todas las clases comparten la misma
+     * base en memoria y el orden de ejecución cambia entre sistemas operativos (en Linux falló en CI),
+     * así que ninguna prueba debe abrir ni esperar sin caja a los usuarios del seed (admin/empleado).
+     */
+    private MockHttpSession freshEmployee() throws Exception {
+        String username = "emp" + java.util.UUID.randomUUID().toString().substring(0, 8);
+        mockMvc.perform(post("/api/users")
+                        .with(SecurityMockMvcRequestPostProcessors.csrf())
+                        .session(loginAs("admin", "admin123"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"%s\",\"fullName\":\"%s\",\"password\":\"claveSegura1\",\"role\":\"EMPLOYEE\"}"
+                                .formatted(username, username)))
+                .andExpect(status().isCreated());
+        return loginAs(username, "claveSegura1");
+    }
+
     private MockHttpSession loginAs(String username, String password) throws Exception {
         MvcResult result = mockMvc.perform(post("/api/auth/login")
                         .with(SecurityMockMvcRequestPostProcessors.csrf())
@@ -85,7 +102,7 @@ class CashSessionCloseIntegrationTest {
 
     @Test
     void flujoCompletoAperturaCobrosCierreYCorreccion() throws Exception {
-        MockHttpSession employeeSession = loginAs("empleado", "empleado123");
+        MockHttpSession employeeSession = freshEmployee();
 
         MvcResult open = mockMvc.perform(post("/api/cash-sessions/open")
                         .with(SecurityMockMvcRequestPostProcessors.csrf())
@@ -152,7 +169,7 @@ class CashSessionCloseIntegrationTest {
 
     @Test
     void cerrarCajaDeOtroEmpleadoEsRechazado() throws Exception {
-        MockHttpSession employeeSession = loginAs("empleado", "empleado123");
+        MockHttpSession employeeSession = freshEmployee();
         MvcResult open = mockMvc.perform(post("/api/cash-sessions/open")
                         .with(SecurityMockMvcRequestPostProcessors.csrf())
                         .session(employeeSession)
@@ -176,15 +193,12 @@ class CashSessionCloseIntegrationTest {
 
     @Test
     void corregirUnaCajaAunAbiertaEsRechazado() throws Exception {
-        // Se abre como "admin": todas las clases de prueba de este modulo comparten la misma
-        // base SQLite en memoria durante TODA la ejecucion de "mvn test" (no solo dentro de esta
-        // clase - ver application-test.yml, maximum-pool-size=1), asi que la caja se cierra al
-        // final como limpieza para no dejar a "admin" con una caja abierta que interfiera con
-        // otras pruebas (p.ej. ParkingOperationsIntegrationTest#checkoutSinCajaAbiertaFalla).
+        // La caja la abre un empleado propio de la prueba (las clases comparten la base en memoria);
+        // la corrige y la cierra el administrador.
         MockHttpSession adminSession = loginAs("admin", "admin123");
         MvcResult open = mockMvc.perform(post("/api/cash-sessions/open")
                         .with(SecurityMockMvcRequestPostProcessors.csrf())
-                        .session(adminSession)
+                        .session(freshEmployee())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"initialBalance\":10000}"))
                 .andExpect(status().isCreated())

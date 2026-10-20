@@ -181,6 +181,10 @@ class AdminIntegrationTest {
     @Test
     void administracionDeConfiguracionYCatalogos() throws Exception {
         MockHttpSession adminSession = loginAs("admin", "admin123");
+        // Otras pruebas pueden haber cambiado la configuración antes: el valor "anterior" esperado es el
+        // que hay justo antes de esta actualización, no el del seed.
+        String before = mockMvc.perform(get("/api/configuration").session(adminSession))
+                .andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
 
         mockMvc.perform(put("/api/configuration")
                         .with(SecurityMockMvcRequestPostProcessors.csrf())
@@ -199,8 +203,10 @@ class AdminIntegrationTest {
                 .andReturn().getResponse().getContentAsString();
         String oldValue = JsonPath.read(audit, "$[0].oldValue");
         String newValue = JsonPath.read(audit, "$[0].newValue");
-        org.junit.jupiter.api.Assertions.assertEquals("Parqueadero de Prueba", JsonPath.read(oldValue, "$.parkingName"));
-        org.junit.jupiter.api.Assertions.assertEquals(40, (int) JsonPath.read(oldValue, "$.maxCapacity"));
+        org.junit.jupiter.api.Assertions.assertEquals((Object) JsonPath.read(before, "$.parkingName"),
+                JsonPath.read(oldValue, "$.parkingName"));
+        org.junit.jupiter.api.Assertions.assertEquals((Object) JsonPath.read(before, "$.maxCapacity"),
+                JsonPath.read(oldValue, "$.maxCapacity"));
         org.junit.jupiter.api.Assertions.assertEquals("Parqueadero Actualizado", JsonPath.read(newValue, "$.parkingName"));
         org.junit.jupiter.api.Assertions.assertEquals(60, (int) JsonPath.read(newValue, "$.maxCapacity"));
 

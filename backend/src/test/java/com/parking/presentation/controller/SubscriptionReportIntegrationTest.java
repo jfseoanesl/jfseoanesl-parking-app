@@ -62,6 +62,23 @@ class SubscriptionReportIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON).content(body)).andReturn();
     }
 
+    /**
+     * Cajero propio de la prueba, con su caja abierta. Las pruebas no deben dejar abierta la caja de
+     * los usuarios del seed (admin/empleado): otras clases asumen que no la tienen y el orden de
+     * ejecución cambia entre sistemas operativos (en Linux falló en CI).
+     */
+    private MockHttpSession cashier(MockHttpSession admin) throws Exception {
+        String username = "cajero" + java.util.UUID.randomUUID().toString().substring(0, 8);
+        MvcResult created = postJson(admin, "/api/users",
+                "{\"username\":\"%s\",\"fullName\":\"%s\",\"password\":\"claveSegura1\",\"role\":\"EMPLOYEE\"}"
+                        .formatted(username, username));
+        assertThat(created.getResponse().getStatus()).as(json(created)).isEqualTo(201);
+        MockHttpSession session = loginAs(username, "claveSegura1");
+        assertThat(postJson(session, "/api/cash-sessions/open", "{\"initialBalance\":0}").getResponse().getStatus())
+                .isEqualTo(201);
+        return session;
+    }
+
     private String create(MockHttpSession admin, String name, String document, int fee, String plate) throws Exception {
         MvcResult r = postJson(admin, "/api/subscriptions",
                 "{\"customerName\":\"%s\",\"documentId\":\"%s\",\"monthlyFee\":%d,\"cutOffDay\":5,\"vehicles\":[{\"plate\":\"%s\",\"vehicleTypeId\":\"%s\"}]}"
@@ -82,15 +99,13 @@ class SubscriptionReportIntegrationTest {
     @Test
     void carteraPagosIndicadoresYFiltros() throws Exception {
         MockHttpSession admin = loginAs("admin", "admin123");
-        if (mockMvc.perform(get("/api/cash-sessions/current").session(admin)).andReturn().getResponse().getStatus() == 404) {
-            postJson(admin, "/api/cash-sessions/open", "{\"initialBalance\":0}");
-        }
+        MockHttpSession cashier = cashier(admin);
         String paid = create(admin, "RPT Pagado", "RPT-1", 80000, "RPT101");
         create(admin, "RPT Sin Pago", "RPT-2", 60000, "RPT102");
         String overdue = create(admin, "RPT Vencido", "RPT-3", 70000, "RPT103");
         String inactive = create(admin, "RPT Inactivo", "RPT-4", 50000, "RPT104");
 
-        assertThat(postJson(admin, "/api/subscriptions/" + paid + "/payments",
+        assertThat(postJson(cashier, "/api/subscriptions/" + paid + "/payments",
                 "{\"paymentMethodId\":\"%s\",\"amount\":80000}".formatted(CASH)).getResponse().getStatus()).isEqualTo(201);
         // Vencida: pagó hasta hace 20 días (más que los 3 días de gracia).
         jdbcTemplate.update("UPDATE subscription SET paid_until = ? WHERE id = ?", TODAY.minusDays(20).toString(), overdue);

@@ -87,7 +87,7 @@ Convenciones: autenticación por cookie de sesión (`10-security-specification.m
 | GET | `/api/subscription-payments/{id}/receipt` | Admin, Empleado | Datos del comprobante de mensualidad. |
 | POST | `/api/parking-sessions/{id}/exit-subscription` | Admin, Empleado | Salida sin cobro de un cliente mensual cubierto (BR-030); `409 SUBSCRIPTION_NOT_COVERING` si no lo está. |
 
-Cambios relacionados: `POST /api/parking-sessions` devuelve `subscriptionId`, `subscriptionCustomerName` y `notice` (BR-029); `POST /quote` devuelve `subscription {id, customerName, status, paidUntil, covered}` y, si está cubierta, `options` vacías y valor 0; `POST /checkout` rechaza `SUBSCRIPTION_COVERED`; `GET /api/reports/summary` agrega `subscriptionCollected`, `subscriptionPayments` y `subscriberExits` (incluidas en `totalCollected` y en los desgloses por medio de pago y empleado); `GET /api/cash-sessions/{id}/payments` agrega `kind` (`PARKING`/`SUBSCRIPTION`); `GET/PUT /api/configuration` agrega `subscriptionGraceDays`.
+Cambios relacionados: `POST /api/parking-sessions` devuelve `subscriptionId`, `subscriptionCustomerName` y `notice` (BR-029); `POST /quote` devuelve `subscription {id, customerName, status, paidUntil, covered}` y, si está cubierta, `options` vacías y valor 0; `POST /checkout` rechaza `SUBSCRIPTION_COVERED`; `GET /api/reports/summary` agrega `subscriptionCollected`, `subscriptionPayments` y `subscriberExits` (incluidas en `totalCollected` y en los desgloses por medio de pago y empleado); `GET /api/cash-sessions/{id}/payments` agrega `kind` (`PARKING`/`SUBSCRIPTION`); `GET/PUT /api/configuration` agrega `subscriptionGraceDays`. `GET /api/dashboard`: `collectedToday` incluye las mensualidades cobradas hoy (corrección del 2026-10-20).
 
 ## Usuarios
 

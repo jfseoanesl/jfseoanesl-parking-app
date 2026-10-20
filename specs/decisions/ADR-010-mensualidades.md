@@ -21,6 +21,7 @@ Decisiones del usuario:
   - `CashSessionService.summarize` suma los pagos mensuales de la caja por categoría de medio de pago, así que afectan el efectivo esperado y el arqueo.
   - Cada cobro deja un `cash_movement` de tipo `PAYMENT` con descripción.
   - `ReportService` los incluye en `totalCollected` y en los desgloses por medio de pago y por empleado, y los informa también por separado.
+  - El Dashboard ("Recaudo hoy", `DashboardService`) también los suma. Esto se omitió en la primera versión y se corrigió el 2026-10-20; lo cubre `SubscriptionIntegrationTest`.
 - **Salida cubierta** (`exit-subscription`): la sesión queda `FINALIZADO` sin pago, sin tarifa y con valor 0, y no exige caja abierta. Es una enmienda explícita a BR-020.
   - La cotización de una sesión cubierta **no consulta el motor tarifario**: así no falla aunque no haya una tarifa aplicable.
   - `checkout` rechaza las sesiones cubiertas, para que no se cobren por error.

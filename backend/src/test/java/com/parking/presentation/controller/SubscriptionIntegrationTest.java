@@ -121,6 +121,8 @@ class SubscriptionIntegrationTest {
         String cashId = JsonPath.read(json(mockMvc.perform(get("/api/cash-sessions/current").session(admin)).andReturn()), "$.id");
         Number cashBefore = JsonPath.read(json(mockMvc.perform(get("/api/cash-sessions/" + cashId + "/summary")
                 .session(admin)).andReturn()), "$.cashCollected");
+        Number dashboardBefore = JsonPath.read(json(mockMvc.perform(get("/api/dashboard").session(admin)).andReturn()),
+                "$.collectedToday");
 
         // Valor distinto al pactado -> rechazo.
         MvcResult wrong = postJson(admin, "/api/subscriptions/" + id + "/payments",
@@ -141,6 +143,10 @@ class SubscriptionIntegrationTest {
         Number cashAfter = JsonPath.read(json(mockMvc.perform(get("/api/cash-sessions/" + cashId + "/summary")
                 .session(admin)).andReturn()), "$.cashCollected");
         assertThat(cashAfter.doubleValue() - cashBefore.doubleValue()).isEqualTo(120000.0);
+        // El Dashboard ("Recaudo hoy") incluye la mensualidad cobrada hoy.
+        Number dashboardAfter = JsonPath.read(json(mockMvc.perform(get("/api/dashboard").session(admin)).andReturn()),
+                "$.collectedToday");
+        assertThat(dashboardAfter.doubleValue() - dashboardBefore.doubleValue()).isEqualTo(120000.0);
         mockMvc.perform(get("/api/cash-sessions/" + cashId + "/payments").session(admin))
                 .andExpect(jsonPath("$[*].kind").value(hasItem("SUBSCRIPTION")));
 

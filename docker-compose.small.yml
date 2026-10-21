@@ -1,0 +1,46 @@
+# Ajustes para VMs pequeñas (~1 GB de RAM y CPU compartida, p. ej. GCP e2-micro de la capa gratuita,
+# AWS t3.micro o Azure B1s). Se combina con el stack de producción y, de preferencia, con las imágenes
+# de Docker Hub (compilar en una VM de 1 GB no es viable):
+#
+#   docker compose -f docker-compose.prod.yml -f docker-compose.hub.yml -f docker-compose.small.yml pull
+#   docker compose -f docker-compose.prod.yml -f docker-compose.hub.yml -f docker-compose.small.yml up -d --no-build
+#
+# Requisito: swap de al menos 2 GB en la VM. Sin swap, MySQL + JVM + sistema superan 1 GB y el kernel
+# mata el backend (OOM). Ver README → "VM pequeña".
+#
+#   sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile
+#   sudo mkswap /swapfile && sudo swapon /swapfile
+#   echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+#
+# Es apto para uso ligero (un parqueadero, pocos usuarios). Para uso real se recomienda 2 GB o más.
+
+services:
+  mysql:
+    # Buffer pool pequeño y sin performance_schema: MySQL baja de ~480 MB a ~200-250 MB.
+    command:
+      - --innodb-buffer-pool-size=64M
+      - --innodb-log-buffer-size=8M
+      - --performance-schema=OFF
+      - --max-connections=30
+      - --table-open-cache=200
+    mem_limit: 400m
+
+  backend:
+    environment:
+      # Heap acotado (la JVM toma por defecto el 25 % de la RAM), GC serial (menos hilos y memoria) y
+      # compilación JIT de un solo nivel (arranque más rápido con poca CPU).
+      JAVA_TOOL_OPTIONS: >-
+        -Xmx256m -Xss512k -XX:MaxMetaspaceSize=160m
+        -XX:+UseSerialGC -XX:TieredStopAtLevel=1
+      SERVER_TOMCAT_THREADS_MAX: "20"
+      SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: "5"
+    mem_limit: 512m
+    # Con ~0,25 vCPU sostenida la JVM y Flyway pueden tardar varios minutos en el primer arranque; sin
+    # este margen Docker marca el backend "unhealthy" y el frontend (que depende de él) no arranca.
+    healthcheck:
+      start_period: 300s
+      interval: 15s
+      retries: 10
+
+  frontend:
+    mem_limit: 64m

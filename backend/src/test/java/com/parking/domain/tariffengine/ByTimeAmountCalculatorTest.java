@@ -17,8 +17,15 @@ class ByTimeAmountCalculatorTest {
 
     private static Tariff byTime(int toleranceMinutes, Integer minTimeMinutes, int fractionMinutes,
                                   TariffRounding rounding, long valuePerFraction) {
+        return byTime(toleranceMinutes, minTimeMinutes, fractionMinutes, rounding, valuePerFraction, null);
+    }
+
+    private static Tariff byTime(int toleranceMinutes, Integer minTimeMinutes, int fractionMinutes,
+                                  TariffRounding rounding, long valuePerFraction, Long firstFractionValue) {
         return new Tariff("t1", "Por tiempo", null, "vt1", TariffModality.BY_TIME,
-                BigDecimal.valueOf(valuePerFraction), null, null, toleranceMinutes, minTimeMinutes,
+                BigDecimal.valueOf(valuePerFraction),
+                firstFractionValue != null ? BigDecimal.valueOf(firstFractionValue) : null,
+                null, null, toleranceMinutes, minTimeMinutes,
                 TariffTimeUnit.MINUTES, fractionMinutes, rounding, 1, true,
                 LocalDate.of(2026, 1, 1), null, Instant.now(), Instant.now(), null, null);
     }
@@ -73,5 +80,39 @@ class ByTimeAmountCalculatorTest {
     void sinFraccionConfiguradaUsaUnMinutoComoFraccion() {
         Tariff tariff = byTime(0, null, 0, TariffRounding.UP, 10);
         assertEquals(BigDecimal.valueOf(50), ByTimeAmountCalculator.calculate(5, tariff));
+    }
+
+    @Test
+    void primeraHoraConValorPropioYCadaHoraAdicionalOFraccionAlValorNormal() {
+        // Primera hora $4.000; cada hora adicional o fraccion $1.000; sin minutos gratis.
+        Tariff tariff = byTime(0, null, 60, TariffRounding.UP, 1000, 4000L);
+        assertEquals(BigDecimal.ZERO, ByTimeAmountCalculator.calculate(0, tariff));
+        assertEquals(BigDecimal.valueOf(4000), ByTimeAmountCalculator.calculate(1, tariff));
+        assertEquals(BigDecimal.valueOf(4000), ByTimeAmountCalculator.calculate(60, tariff));
+        assertEquals(BigDecimal.valueOf(5000), ByTimeAmountCalculator.calculate(61, tariff));
+        assertEquals(BigDecimal.valueOf(6000), ByTimeAmountCalculator.calculate(150, tariff));
+    }
+
+    @Test
+    void sinAplicarPrimeraFraccionTodasValenLoMismo() {
+        Tariff tariff = byTime(0, null, 60, TariffRounding.UP, 1000, 4000L);
+        assertEquals(BigDecimal.valueOf(1000), ByTimeAmountCalculator.calculate(30, tariff, false));
+        assertEquals(BigDecimal.valueOf(2000), ByTimeAmountCalculator.calculate(61, tariff, false));
+    }
+
+    @Test
+    void primeraFraccionRespetaToleranciaTiempoMinimoYRedondeo() {
+        Tariff conTolerancia = byTime(10, null, 60, TariffRounding.UP, 1000, 4000L);
+        assertEquals(BigDecimal.ZERO, ByTimeAmountCalculator.calculate(10, conTolerancia));
+        assertEquals(BigDecimal.valueOf(4000), ByTimeAmountCalculator.calculate(11, conTolerancia));
+
+        // Tiempo minimo de 120 min: 30 min se facturan como 2 fracciones -> 4000 + 1000.
+        Tariff conMinimo = byTime(0, 120, 60, TariffRounding.UP, 1000, 4000L);
+        assertEquals(BigDecimal.valueOf(5000), ByTimeAmountCalculator.calculate(30, conMinimo));
+
+        // DOWN: menos de una fraccion completa son 0 fracciones -> $0, aun con valor de primera fraccion.
+        Tariff haciaAbajo = byTime(0, null, 60, TariffRounding.DOWN, 1000, 4000L);
+        assertEquals(BigDecimal.ZERO, ByTimeAmountCalculator.calculate(30, haciaAbajo));
+        assertEquals(BigDecimal.valueOf(5000), ByTimeAmountCalculator.calculate(150, haciaAbajo));
     }
 }

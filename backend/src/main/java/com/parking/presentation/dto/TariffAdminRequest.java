@@ -17,6 +17,7 @@ public record TariffAdminRequest(
         @NotBlank(message = "el tipo de vehículo es obligatorio") String vehicleTypeId,
         @NotNull(message = "la modalidad es obligatoria") TariffModality modality,
         @NotNull(message = "el valor es obligatorio") BigDecimal value,
+        BigDecimal firstFractionValue,
         LocalTime startTime,
         LocalTime endTime,
         Integer toleranceMinutes,

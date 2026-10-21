@@ -47,6 +47,9 @@ public class TariffEntity {
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal value;
 
+    @Column(name = "first_fraction_value", precision = 12, scale = 2)
+    private BigDecimal firstFractionValue;
+
     @Column(name = "start_time")
     private String startTime;
 

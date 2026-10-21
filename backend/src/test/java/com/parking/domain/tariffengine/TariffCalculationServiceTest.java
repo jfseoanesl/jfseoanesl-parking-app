@@ -73,7 +73,13 @@ class TariffCalculationServiceTest {
 
     private static Tariff tariff(String id, TariffModality modality, long value, LocalTime start, LocalTime end,
                                   int priority) {
-        return new Tariff(id, id, null, VEHICLE_TYPE_ID, modality, BigDecimal.valueOf(value), start, end,
+        return tariff(id, modality, value, start, end, priority, null);
+    }
+
+    private static Tariff tariff(String id, TariffModality modality, long value, LocalTime start, LocalTime end,
+                                 int priority, Long firstFractionValue) {
+        return new Tariff(id, id, null, VEHICLE_TYPE_ID, modality, BigDecimal.valueOf(value),
+                firstFractionValue != null ? BigDecimal.valueOf(firstFractionValue) : null, start, end,
                 10, null, TariffTimeUnit.MINUTES, 60, TariffRounding.UP, priority, true,
                 LocalDate.of(2026, 1, 1), null, Instant.now(), Instant.now(), null, null);
     }
@@ -181,6 +187,34 @@ class TariffCalculationServiceTest {
 
         assertEquals(TariffModality.BY_TIME, result.modality());
         assertEquals(BigDecimal.valueOf(25000), result.amount()); // 1500/60 = 25 fracciones x 1000
+    }
+
+    @Test
+    void permanenciaMayorA24HorasElRemanenteNoAplicaElValorDeLaPrimeraFraccion() {
+        Tariff fullDay = tariff("full-day", TariffModality.FULL_DAY, 8000, LocalTime.of(0, 0), LocalTime.of(0, 0), 1);
+        Tariff byTime = tariff("by-time", TariffModality.BY_TIME, 1000, null, null, 2, 4000L);
+        givenTariffs(fullDay, byTime);
+
+        ParkingSession session = sessionEnteringAt(at(8, 0));
+        Instant exit = at(8, 0).plusSeconds(25L * 3600); // 1 dia + 60 min de remanente
+
+        TariffCalculationResult result = service.calculate(session, exit);
+
+        // 8000 del dia + 1 fraccion del remanente a 1000 (la primera hora a 4000 es solo al inicio de la estadia).
+        assertEquals(BigDecimal.valueOf(9000), result.amount());
+    }
+
+    @Test
+    void permanenciaMayorA24HorasSinTarifaTodoElDiaAplicaLaPrimeraFraccion() {
+        Tariff byTime = tariff("by-time", TariffModality.BY_TIME, 1000, null, null, 1, 4000L);
+        givenTariffs(byTime);
+
+        ParkingSession session = sessionEnteringAt(at(8, 0));
+        Instant exit = at(8, 0).plusSeconds(25L * 3600); // 25 fracciones
+
+        TariffCalculationResult result = service.calculate(session, exit);
+
+        assertEquals(BigDecimal.valueOf(4000 + 24 * 1000), result.amount());
     }
 
     @Test

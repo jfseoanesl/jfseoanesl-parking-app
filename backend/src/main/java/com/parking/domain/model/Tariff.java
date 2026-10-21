@@ -17,6 +17,7 @@ public record Tariff(
         String vehicleTypeId,
         TariffModality modality,
         BigDecimal value,
+        BigDecimal firstFractionValue,
         LocalTime startTime,
         LocalTime endTime,
         Integer toleranceMinutes,

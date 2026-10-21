@@ -1234,6 +1234,11 @@ components:
         vehicleTypeId: { type: string, format: uuid }
         modality: { type: string, enum: [FULL_AM, FULL_PM, FULL_DAY, BY_TIME] }
         value: { type: number }
+        firstFractionValue:
+          type: number
+          nullable: true
+          minimum: 0
+          description: "Solo BY_TIME (BR-011). Valor de la primera fracción; las siguientes valen `value`. Nulo = todas valen `value`."
         startTime: { type: string, example: "06:00:00", nullable: true }
         endTime: { type: string, example: "18:00:00", nullable: true }
         toleranceMinutes: { type: integer, default: 10 }

@@ -60,6 +60,7 @@ Los rangos horarios que definen "tarifa plena AM" y "tarifa plena PM" son config
 **BR-011 — Cálculo de fracciones**
 El tiempo de permanencia se cobra en bloques de `fraccion_minutos` (valor de `value` = precio por bloque). Toda fracción iniciada, por mínima que sea, se cobra como fracción completa (redondeo hacia arriba / "ceiling") salvo que la tarifa configure otra política en `redondeo`, y salvo que la sesión esté dentro de la tolerancia (BR-012).
 *Parametrizable:* la duración de la fracción (`fraccion_minutos`) y la política de redondeo (`UP`/`DOWN`/`NEAREST`, default `UP`).
+*Valor de la primera fracción (2026-10-21, solicitud del usuario):* la tarifa puede definir un `first_fraction_value` opcional para cobrar la primera fracción a un valor distinto ("primera hora $4.000, cada hora adicional o fracción $1.000"). Cobro = `first_fraction_value` + (fracciones − 1) × `value` cuando hay al menos una fracción facturable; con 0 fracciones (tolerancia, o redondeo `DOWN` con menos de una fracción) el cobro es $0. La tolerancia, el tiempo mínimo y el redondeo se aplican igual, antes de este cálculo. Sin el campo, todas las fracciones valen `value` (comportamiento anterior). Ejemplo con fracción de 60 min, `UP` y tolerancia 0: 60 min → $4.000; 61 min → $5.000; 2 h 30 min → $6.000.
 *Nota de implementación (Fase 5):* el campo `unidad_tiempo` (`MINUTES`/`HOURS`) es metadato informativo para la UI de administración de tarifas (Fase 7) — indica en qué unidad piensa el administrador la fracción al configurarla — pero el motor de cálculo siempre opera internamente en minutos usando `fraccion_minutos` como valor ya convertido, para no duplicar lógica de conversión en el motor.
 *Decisión confirmada por el usuario.*
 
@@ -82,6 +83,7 @@ El cálculo de tiempo de permanencia es continuo: no se “corta” ni se recalc
 
 **BR-015 — Permanencias mayores a 24 horas**
 Cuando la permanencia supera las 24 horas, el cobro se calcula como: (número de días completos de 24h × valor de la tarifa "todo el día" vigente para el tipo de vehículo) + (cobro por tiempo, aplicando fracción/redondeo, sobre el remanente inferior a 24h). Si no existe tarifa "todo el día" configurada para ese tipo de vehículo, se aplica la tarifa por tiempo sobre la totalidad de la permanencia.
+El remanente continúa la estadía, así que **no** aplica el valor de la primera fracción (BR-011): todas sus fracciones se cobran a `value` (confirmado por el usuario, 2026-10-21). Sin tarifa "todo el día", la permanencia completa se cobra por tiempo y sí aplica.
 *Parametrizable:* los valores de tarifa usados en el cálculo, sí; la fórmula en sí no. *Decisión confirmada por el usuario.*
 
 **BR-016 — Capacidad máxima**

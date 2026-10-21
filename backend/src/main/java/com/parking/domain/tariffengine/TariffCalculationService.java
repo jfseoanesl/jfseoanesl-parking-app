@@ -126,7 +126,7 @@ public class TariffCalculationService {
 
         BigDecimal amount = dayTariff.value().multiply(BigDecimal.valueOf(days));
         if (remainderMinutes > 0) {
-            amount = amount.add(byTime.map(t -> ByTimeAmountCalculator.calculate(remainderMinutes, t))
+            amount = amount.add(byTime.map(t -> ByTimeAmountCalculator.calculate(remainderMinutes, t, false))
                     // Sin tarifa por tiempo para el remanente: se cobra un dia adicional (conservador,
                     // evita dejar el remanente sin cobrar).
                     .orElse(dayTariff.value()));

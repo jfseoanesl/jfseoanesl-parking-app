@@ -82,6 +82,7 @@ El modelo preliminar del prompt (§24) sugiere `Tariff` y `TariffRule` como enti
 | vehicleTypeId | UUID | FK → VehicleType, no nulo (BR-005) |
 | modality | enum | `FULL_AM` \| `FULL_PM` \| `FULL_DAY` \| `BY_TIME`, no nulo |
 | value | decimal | no nulo, ≥ 0 |
+| firstFractionValue | decimal | opcional, ≥ 0, solo `BY_TIME`: valor de la primera fracción (BR-011); nulo = todas valen `value` |
 | startTime | time | requerido para `FULL_AM`, `FULL_PM`, `FULL_DAY`; nulo para `BY_TIME` |
 | endTime | time | ídem |
 | tolerance | integer (minutos) | default 10 (BR-012) |

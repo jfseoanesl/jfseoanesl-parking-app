@@ -138,6 +138,8 @@ export interface AdminTariff {
   vehicleTypeId: string
   modality: TariffModality
   value: number
+  /** BR-011: valor de la primera fracción (BY_TIME). null = todas las fracciones valen `value`. */
+  firstFractionValue: number | null
   startTime: string | null
   endTime: string | null
   toleranceMinutes: number | null

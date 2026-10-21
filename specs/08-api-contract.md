@@ -30,7 +30,7 @@ Convenciones: autenticación por cookie de sesión (`10-security-specification.m
 | Método | Ruta | Rol | Descripción |
 |---|---|---|---|
 | GET | `/api/tariffs` | Admin | Lista tarifas (`?vehicleTypeId=&active=`). |
-| POST | `/api/tariffs` | Admin | Crea tarifa (RF-018). |
+| POST | `/api/tariffs` | Admin | Crea tarifa (RF-018). `firstFractionValue` opcional (solo `BY_TIME`, ≥ 0; BR-011): valor de la primera fracción. |
 | GET | `/api/tariffs/{id}` | Admin | Detalle. |
 | PUT | `/api/tariffs/{id}` | Admin | Edita tarifa (RF-019), genera auditoría. |
 | PATCH | `/api/tariffs/{id}/status` | Admin | Activa/desactiva (RF-020). |

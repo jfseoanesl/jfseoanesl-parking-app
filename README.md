@@ -136,6 +136,31 @@ docker compose -f docker-compose.prod.yml -f docker-compose.hub.yml up -d --no-b
 
 **HTTPS:** al servir la app con HTTPS, define `SESSION_COOKIE_SECURE=true`. HTTPS también es necesario para instalar la PWA en el celular.
 
+**Requisitos de la VM:**
+- **Mínimo:** 1–2 vCPU, 2 GB de RAM y 20 GB de SSD.
+- **Recomendado:** 2 vCPU, 4 GB de RAM y 30–40 GB de SSD.
+- **Sistema:** Linux **x86_64**. Las imágenes se publican para `linux/amd64`, así que no sirven las instancias ARM.
+
+En reposo, el backend usa cerca de 425 MB, MySQL cerca de 485 MB y nginx cerca de 10 MB.
+
+**VM pequeña (~1 GB, p. ej. GCP e2-micro de la capa gratuita):** usa `docker-compose.small.yml`. Este archivo:
+- limita el heap de la JVM, el buffer de MySQL, los hilos y las conexiones;
+- fija un tope de memoria por contenedor;
+- da al backend hasta 5 minutos para el primer arranque.
+
+**Antes, crea 2 GB de swap.** Sin swap, el sistema mata el backend por falta de memoria (OOM).
+
+```bash
+sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile
+sudo mkswap /swapfile && sudo swapon /swapfile
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+
+docker compose -f docker-compose.prod.yml -f docker-compose.hub.yml -f docker-compose.small.yml pull
+docker compose -f docker-compose.prod.yml -f docker-compose.hub.yml -f docker-compose.small.yml up -d --no-build
+```
+
+Funciona para uso ligero (un parqueadero, pocos usuarios), pero arranca lento y los reportes o respaldos grandes tardan. No compiles en una VM de 1 GB: usa las imágenes de Docker Hub.
+
 **Pasar datos de una instalación a otra** (por ejemplo, de SQLite a MySQL):
 1. En el origen: **Respaldo → Descargar respaldo**.
 2. En el destino: **Respaldo → Importar**, revisar el resumen y confirmar escribiendo `REEMPLAZAR`.
@@ -241,6 +266,7 @@ Ver [`specs/10-security-specification.md`](specs/10-security-specification.md), 
 ├── docker-compose.yml       Stack de desarrollo (SQLite, puerto 8081)
 ├── docker-compose.prod.yml  Stack de producción (MySQL, puerto 8091)
 ├── docker-compose.hub.yml   Producción con imágenes de Docker Hub
+├── docker-compose.small.yml Ajustes para VMs pequeñas (~1 GB de RAM)
 └── .github/workflows/       CI/CD
 ```
 

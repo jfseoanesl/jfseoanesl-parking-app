@@ -48,9 +48,9 @@ public class TariffAdminService {
     /** RF-018, RF-021 (validación de consistencia por modalidad). */
     public record TariffInput(
             String name, String description, String vehicleTypeId, TariffModality modality, BigDecimal value,
-            LocalTime startTime, LocalTime endTime, Integer toleranceMinutes, Integer minTimeMinutes,
-            TariffTimeUnit timeUnit, Integer fractionMinutes, TariffRounding rounding, Integer priority,
-            Boolean active, LocalDate validFrom, LocalDate validTo) {
+            BigDecimal firstFractionValue, LocalTime startTime, LocalTime endTime, Integer toleranceMinutes,
+            Integer minTimeMinutes, TariffTimeUnit timeUnit, Integer fractionMinutes, TariffRounding rounding,
+            Integer priority, Boolean active, LocalDate validFrom, LocalDate validTo) {
     }
 
     @Transactional
@@ -58,9 +58,9 @@ public class TariffAdminService {
         validate(input);
         Instant now = timeProvider.now();
         Tariff tariff = new Tariff(UUID.randomUUID().toString(), input.name(), input.description(),
-                input.vehicleTypeId(), input.modality(), input.value(), input.startTime(), input.endTime(),
-                input.toleranceMinutes(), input.minTimeMinutes(), input.timeUnit(), input.fractionMinutes(),
-                input.rounding() != null ? input.rounding() : TariffRounding.UP,
+                input.vehicleTypeId(), input.modality(), input.value(), input.firstFractionValue(),
+                input.startTime(), input.endTime(), input.toleranceMinutes(), input.minTimeMinutes(),
+                input.timeUnit(), input.fractionMinutes(), input.rounding() != null ? input.rounding() : TariffRounding.UP,
                 input.priority() != null ? input.priority() : 1,
                 input.active() == null || input.active(), input.validFrom() != null ? input.validFrom() : LocalDate.now(),
                 input.validTo(), now, now, actorId, actorId);
@@ -76,8 +76,8 @@ public class TariffAdminService {
         validate(input);
         Instant now = timeProvider.now();
         Tariff updated = new Tariff(existing.id(), input.name(), input.description(), input.vehicleTypeId(),
-                input.modality(), input.value(), input.startTime(), input.endTime(), input.toleranceMinutes(),
-                input.minTimeMinutes(), input.timeUnit(), input.fractionMinutes(),
+                input.modality(), input.value(), input.firstFractionValue(), input.startTime(), input.endTime(),
+                input.toleranceMinutes(), input.minTimeMinutes(), input.timeUnit(), input.fractionMinutes(),
                 input.rounding() != null ? input.rounding() : existing.rounding(),
                 input.priority() != null ? input.priority() : existing.priority(),
                 input.active() != null ? input.active() : existing.active(),
@@ -93,7 +93,8 @@ public class TariffAdminService {
     public Tariff setActive(String id, boolean active, String actorId) {
         Tariff existing = getById(id);
         Tariff updated = new Tariff(existing.id(), existing.name(), existing.description(),
-                existing.vehicleTypeId(), existing.modality(), existing.value(), existing.startTime(),
+                existing.vehicleTypeId(), existing.modality(), existing.value(),
+                existing.firstFractionValue(), existing.startTime(),
                 existing.endTime(), existing.toleranceMinutes(), existing.minTimeMinutes(), existing.timeUnit(),
                 existing.fractionMinutes(), existing.rounding(), existing.priority(), active, existing.validFrom(),
                 existing.validTo(), existing.createdAt(), timeProvider.now(), existing.createdBy(), actorId);
@@ -130,6 +131,14 @@ public class TariffAdminService {
                 }
             }
         }
+        if (input.firstFractionValue() != null) {
+            if (input.modality() != TariffModality.BY_TIME) {
+                throw new IllegalArgumentException("El valor de la primera fracción solo aplica a tarifas por tiempo");
+            }
+            if (input.firstFractionValue().signum() < 0) {
+                throw new IllegalArgumentException("El valor de la primera fracción debe ser mayor o igual a 0");
+            }
+        }
         if (input.validFrom() != null && input.validTo() != null && input.validTo().isBefore(input.validFrom())) {
             throw new IllegalArgumentException("La fecha de fin de vigencia no puede ser anterior al inicio");
         }
@@ -145,6 +154,7 @@ public class TariffAdminService {
                 + ",\"vehicleTypeId\":" + str(t.vehicleTypeId())
                 + ",\"modality\":" + str(t.modality() == null ? null : t.modality().name())
                 + ",\"value\":" + t.value()
+                + ",\"firstFractionValue\":" + t.firstFractionValue()
                 + ",\"startTime\":" + str(t.startTime() == null ? null : t.startTime().toString())
                 + ",\"endTime\":" + str(t.endTime() == null ? null : t.endTime().toString())
                 + ",\"toleranceMinutes\":" + t.toleranceMinutes()

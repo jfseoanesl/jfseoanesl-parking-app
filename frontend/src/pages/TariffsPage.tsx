@@ -44,6 +44,7 @@ export default function TariffsPage() {
   const [vehicleTypeId, setVehicleTypeId] = useState('')
   const [modality, setModality] = useState<TariffModality>('BY_TIME')
   const [value, setValue] = useState('')
+  const [firstFractionValue, setFirstFractionValue] = useState('')
   const [startTime, setStartTime] = useState('06:00')
   const [endTime, setEndTime] = useState('18:00')
   const [toleranceMinutes, setToleranceMinutes] = useState('10')
@@ -73,6 +74,7 @@ export default function TariffsPage() {
     setValidTo('')
     setModality('BY_TIME')
     setValue('')
+    setFirstFractionValue('')
     setToleranceMinutes('10')
     setFractionMinutes('60')
     setRounding('UP')
@@ -90,6 +92,7 @@ export default function TariffsPage() {
     setVehicleTypeId(tariff.vehicleTypeId)
     setModality(tariff.modality)
     setValue(String(tariff.value))
+    setFirstFractionValue(tariff.firstFractionValue != null ? String(tariff.firstFractionValue) : '')
     setStartTime(tariff.startTime?.slice(0, 5) ?? '06:00')
     setEndTime(tariff.endTime?.slice(0, 5) ?? '18:00')
     setToleranceMinutes(tariff.toleranceMinutes != null ? String(tariff.toleranceMinutes) : '')
@@ -113,6 +116,7 @@ export default function TariffsPage() {
         vehicleTypeId,
         modality,
         value: Number(value),
+        firstFractionValue: modality === 'BY_TIME' && firstFractionValue ? Number(firstFractionValue) : null,
         startTime: NEEDS_WINDOW.includes(modality) ? `${startTime}:00` : null,
         endTime: NEEDS_WINDOW.includes(modality) ? `${endTime}:00` : null,
         toleranceMinutes: toleranceMinutes ? Number(toleranceMinutes) : null,
@@ -234,7 +238,16 @@ export default function TariffsPage() {
 
             <FormSection title="Cálculo">
               <div className="grid gap-4 sm:grid-cols-2">
-                <TextField label="Valor" type="number" inputMode="numeric" min="0" adornment="$" value={value} onChange={(e) => setValue(e.target.value)} required />
+                <TextField
+                  label={modality === 'BY_TIME' && firstFractionValue ? 'Valor por fracción adicional' : 'Valor'}
+                  type="number"
+                  inputMode="numeric"
+                  min="0"
+                  adornment="$"
+                  value={value}
+                  onChange={(e) => setValue(e.target.value)}
+                  required
+                />
                 <TextField
                   label="Tolerancia (min)"
                   type="number"
@@ -246,6 +259,16 @@ export default function TariffsPage() {
                 {modality === 'BY_TIME' && (
                   <>
                     <TextField label="Fracción (min)" type="number" min="1" value={fractionMinutes} onChange={(e) => setFractionMinutes(e.target.value)} required />
+                    <TextField
+                      label="Valor de la primera fracción"
+                      type="number"
+                      inputMode="numeric"
+                      min="0"
+                      adornment="$"
+                      value={firstFractionValue}
+                      onChange={(e) => setFirstFractionValue(e.target.value)}
+                      hint="Opcional. Ej.: primera hora $4.000 y cada hora adicional o fracción $1.000. Vacío: todas valen lo mismo."
+                    />
                     <TextField
                       label="Tiempo mínimo a cobrar (min)"
                       type="number"
@@ -338,7 +361,15 @@ export default function TariffsPage() {
                 </div>
 
                 <p className="mt-4 text-2xl font-semibold text-neutral-900">
-                  {formatCurrency(tariff.value)}
+                  {tariff.modality === 'BY_TIME' && tariff.firstFractionValue != null ? (
+                    <>
+                      {formatCurrency(tariff.firstFractionValue)}
+                      <span className="text-sm font-normal text-neutral-500"> primeros {tariff.fractionMinutes} min · luego </span>
+                      {formatCurrency(tariff.value)}
+                    </>
+                  ) : (
+                    formatCurrency(tariff.value)
+                  )}
                   {tariff.modality === 'BY_TIME' && tariff.fractionMinutes && (
                     <span className="text-sm font-normal text-neutral-500"> / {tariff.fractionMinutes} min</span>
                   )}

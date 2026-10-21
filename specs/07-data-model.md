@@ -57,6 +57,7 @@ erDiagram
         char36 vehicle_type_id FK
         varchar modality
         decimal value
+        decimal first_fraction_value
         time start_time
         time end_time
         int tolerance_minutes

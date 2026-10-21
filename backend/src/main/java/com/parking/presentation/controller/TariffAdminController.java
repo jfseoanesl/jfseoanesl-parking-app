@@ -70,7 +70,7 @@ public class TariffAdminController {
 
     private static TariffAdminService.TariffInput toInput(TariffAdminRequest r) {
         return new TariffAdminService.TariffInput(r.name(), r.description(), r.vehicleTypeId(), r.modality(),
-                r.value(), r.startTime(), r.endTime(), r.toleranceMinutes(), r.minTimeMinutes(), r.timeUnit(),
+                r.value(), r.firstFractionValue(), r.startTime(), r.endTime(), r.toleranceMinutes(), r.minTimeMinutes(), r.timeUnit(),
                 r.fractionMinutes(), r.rounding(), r.priority(), r.active(), r.validFrom(), r.validTo());
     }
 }

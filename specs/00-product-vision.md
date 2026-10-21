@@ -379,3 +379,7 @@ transferencia real de la instalación SQLite a una MySQL temporal, con conteos y
 - Corrección relacionada: el Dashboard ("Recaudo hoy") ya suma las mensualidades.
 - Verificado: backend 109/109 en SQLite y MySQL, frontend 30/30 y E2E 24/24.
 
+**Valor de la primera fracción (2026-10-21):** enmienda de BR-011 y BR-015, migración V8. La tarifa por tiempo admite un valor propio para la primera fracción, para cobrar "primera hora $4.000, cada hora adicional o fracción $1.000".
+- Decisiones del usuario: la hora adicional se cobra desde el minuto 61, sin minutos gratis, y en permanencias de más de 24 h el remanente cobra todas sus fracciones al valor normal.
+- Las tarifas existentes no cambian (campo nulo).
+

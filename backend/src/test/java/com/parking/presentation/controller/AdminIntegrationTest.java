@@ -179,6 +179,49 @@ class AdminIntegrationTest {
     }
 
     @Test
+    void tarifaPorTiempoConValorDePrimeraFraccion() throws Exception {
+        MockHttpSession adminSession = loginAs("admin", "admin123");
+        // Se crea inactiva: una BY_TIME activa aplica a toda sesion de autos y cambiaria los cobros de otras pruebas.
+        String body = "{\"name\":\"Primera hora prueba\",\"vehicleTypeId\":\"%s\",\"modality\":\"%s\","
+                + "\"value\":1000,\"firstFractionValue\":%s,\"fractionMinutes\":60,\"toleranceMinutes\":0,"
+                + "\"startTime\":\"06:00:00\",\"endTime\":\"18:00:00\",\"priority\":5,\"active\":false}";
+
+        MvcResult created = mockMvc.perform(post("/api/tariffs")
+                        .with(SecurityMockMvcRequestPostProcessors.csrf())
+                        .session(adminSession)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body.formatted(CAR_VEHICLE_TYPE_ID, "BY_TIME", "4000")))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.firstFractionValue").value(4000))
+                .andExpect(jsonPath("$.value").value(1000))
+                .andReturn();
+        String tariffId = JsonPath.read(created.getResponse().getContentAsString(), "$.id");
+
+        // Al editar sin el campo vuelve a ser una tarifa de valor uniforme.
+        mockMvc.perform(put("/api/tariffs/" + tariffId)
+                        .with(SecurityMockMvcRequestPostProcessors.csrf())
+                        .session(adminSession)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body.formatted(CAR_VEHICLE_TYPE_ID, "BY_TIME", "null")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.firstFractionValue").value(org.hamcrest.Matchers.nullValue()));
+
+        mockMvc.perform(post("/api/tariffs")
+                        .with(SecurityMockMvcRequestPostProcessors.csrf())
+                        .session(adminSession)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body.formatted(CAR_VEHICLE_TYPE_ID, "BY_TIME", "-1")))
+                .andExpect(status().isBadRequest());
+        // Solo aplica a tarifas por tiempo.
+        mockMvc.perform(post("/api/tariffs")
+                        .with(SecurityMockMvcRequestPostProcessors.csrf())
+                        .session(adminSession)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body.formatted(CAR_VEHICLE_TYPE_ID, "FULL_AM", "4000")))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void administracionDeConfiguracionYCatalogos() throws Exception {
         MockHttpSession adminSession = loginAs("admin", "admin123");
         // Otras pruebas pueden haber cambiado la configuración antes: el valor "anterior" esperado es el

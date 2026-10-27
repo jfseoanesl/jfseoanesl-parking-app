@@ -40,6 +40,8 @@ Administrador (barra inferior — 4 ítems + Más):
                                     └────────────────────────────────────────┘
 ```
 
+**Ingresos y gastos (UC-014, 2026-10-27):** opción del menú de ambos roles, justo después de Caja; en móvil queda en el panel "Más" (empleado: Caja, Ingresos y gastos, Mensualidades). El mapa actual completo es `frontend/src/layout/navigation.ts`.
+
 Ítem activo resaltado con color primario + label corto; iconografía simple y reconocible (placa/coche para "Parqueados", billete para "Cobros/Caja", gráfico para "Reportes"). Objetivo táctil mínimo por ítem: 44×44px (RNF-004).
 
 ---
@@ -382,6 +384,7 @@ Formulario de tarifa (crear/editar) en pantalla completa o panel lateral en desk
 - El resumen del turno muestra "Incluye otros ingresos" y "Gastos de caja"; el efectivo esperado ya descuenta los gastos en efectivo.
 - Las operaciones del turno muestran badges "Otro ingreso" y "Gasto", el signo del valor y el estado "Anulado" con su motivo. El administrador tiene **Anular** (diálogo con motivo obligatorio).
 - Solo el administrador ve la tarjeta **Gastos de caja**: las cajas abiertas con su efectivo disponible y **Registrar gasto** en cada una.
+- **Pantalla "Ingresos y gastos"** (`/ingresos-gastos`, menú lateral): **Registrar otro ingreso** (deshabilitado con aviso y enlace a Caja si el usuario no tiene caja abierta) y **Movimientos de mi caja** (solo otros ingresos y gastos, con comprobante). El administrador ve además **Gastos de caja** (cajas abiertas y registrar gasto), **Movimientos de hoy** de todas las cajas (totales, comprobante y anular; enlace al reporte completo) y **Conceptos de caja**. Los botones de la pantalla Caja se mantienen.
 - Configuración (administrador) agrega **Conceptos de caja**: pestañas Otros ingresos / Gastos, renombrar, activar/desactivar y agregar.
 
 ### 5.13 Mensualidades (RF-074 a RF-077)

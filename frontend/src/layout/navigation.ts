@@ -16,6 +16,8 @@ const EMPLOYEE_NAV: NavItem[] = [
   // inmediata desde ahi para registrar salida) - no existe una pantalla "Cobros" separada.
   { label: 'Cobros', path: '/parqueados', implemented: true },
   { label: 'Caja', path: '/caja', implemented: true },
+  // UC-014: otros ingresos (y, para el administrador, gastos de caja).
+  { label: 'Ingresos y gastos', path: '/ingresos-gastos', implemented: true },
   { label: 'Mensualidades', path: '/mensualidades', implemented: true },
 ]
 
@@ -27,6 +29,7 @@ const ADMIN_NAV: NavItem[] = [
   { label: 'Tarifas', path: '/tarifas', implemented: true },
   { label: 'Usuarios', path: '/usuarios', implemented: true },
   { label: 'Caja', path: '/caja', implemented: true },
+  { label: 'Ingresos y gastos', path: '/ingresos-gastos', implemented: true },
   { label: 'Mensualidades', path: '/mensualidades', implemented: true },
   { label: 'Configuración', path: '/configuracion', implemented: true },
   { label: 'Auditoría', path: '/auditoria', implemented: true },

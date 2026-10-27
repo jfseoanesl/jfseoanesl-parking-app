@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Ban, FilePenLine, MinusCircle, Receipt, Search } from 'lucide-react'
 import { api, ApiError } from '../api/client'
-import type { CashOperation, ClosedCashSession, OpenCashSession } from '../api/types'
+import type { CashOperation, CashTransactionType, ClosedCashSession, OpenCashSession } from '../api/types'
 import { formatCurrency, formatDateTime, formatTime, localIsoDate } from '../lib/format'
 import { Button } from '../components/Button'
 import { Alert, Skeleton } from '../components/Feedback'
@@ -21,24 +21,99 @@ function receiptPath(op: CashOperation): string {
   return `/comprobantes/${op.paymentId}`
 }
 
+/** Otro ingreso o gasto a anular (BR-035). */
+export interface VoidTarget {
+  id: string
+  type: CashTransactionType
+  operationNumber: string
+  amount: number
+  label: string | null
+}
+
+/** BR-035: diálogo de anulación con motivo obligatorio (solo administrador, caja abierta). */
+export function VoidMovementDialog({ target, onClose, onVoided }: {
+  target: VoidTarget | null
+  onClose: () => void
+  onVoided: () => void
+}) {
+  const toast = useToast()
+  const [reason, setReason] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+
+  useEffect(() => {
+    setReason('')
+    setError(null)
+  }, [target])
+
+  async function confirmVoid() {
+    if (!target) return
+    if (!reason.trim()) {
+      setError('Indica el motivo de la anulación')
+      return
+    }
+    setSubmitting(true)
+    setError(null)
+    try {
+      await api.post(`/cash-transactions/${target.id}/void`, { reason: reason.trim() })
+      toast(target.type === 'EXPENSE' ? 'Gasto anulado' : 'Ingreso anulado')
+      onClose()
+      onVoided()
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'No se pudo anular el movimiento')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <ConfirmDialog
+      open={target !== null}
+      title={`¿Anular ${target?.type === 'EXPENSE' ? 'el gasto' : 'el ingreso'} ${target?.operationNumber ?? ''}?`}
+      confirmLabel="Sí, anular"
+      tone="danger"
+      loading={submitting}
+      onConfirm={confirmVoid}
+      onCancel={onClose}
+    >
+      <p>
+        {formatCurrency(target?.amount ?? 0)}
+        {target?.label && <> · {target.label}</>}. Dejará de sumar en la caja y en los reportes, y queda en auditoría.
+      </p>
+      <div className="mt-4">
+        <label className="label" htmlFor="void-reason">
+          Motivo de la anulación
+        </label>
+        <textarea
+          id="void-reason"
+          className="input min-h-20"
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          maxLength={255}
+          required
+        />
+        {error && <p className="mt-2 text-danger-700">{error}</p>}
+      </div>
+    </ConfirmDialog>
+  )
+}
+
 /**
  * RF-059: cobros, otros ingresos y gastos registrados en la caja del turno, con acceso al
  * comprobante. El administrador puede anular un ingreso o gasto mientras la caja sigue abierta (BR-035).
+ * Con {@code onlyMovements} muestra solo los otros ingresos y gastos (pantalla Ingresos y gastos).
  */
-export function ShiftOperations({ cashSessionId, refreshKey, onChanged }: {
+export function ShiftOperations({ cashSessionId, refreshKey, onChanged, onlyMovements = false }: {
   cashSessionId: string
   refreshKey: number
   onChanged?: () => void
+  onlyMovements?: boolean
 }) {
   const navigate = useNavigate()
-  const toast = useToast()
   const { user } = useAuth()
   const [operations, setOperations] = useState<CashOperation[] | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [voiding, setVoiding] = useState<CashOperation | null>(null)
-  const [reason, setReason] = useState('')
-  const [voidError, setVoidError] = useState<string | null>(null)
-  const [submitting, setSubmitting] = useState(false)
+  const [voiding, setVoiding] = useState<VoidTarget | null>(null)
 
   function load() {
     api
@@ -50,42 +125,29 @@ export function ShiftOperations({ cashSessionId, refreshKey, onChanged }: {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(load, [cashSessionId, refreshKey])
 
-  async function confirmVoid() {
-    if (!voiding) return
-    if (!reason.trim()) {
-      setVoidError('Indica el motivo de la anulación')
-      return
-    }
-    setSubmitting(true)
-    setVoidError(null)
-    try {
-      await api.post(`/cash-transactions/${voiding.paymentId}/void`, { reason: reason.trim() })
-      toast(voiding.kind === 'EXPENSE' ? 'Gasto anulado' : 'Ingreso anulado')
-      setVoiding(null)
-      load()
-      onChanged?.()
-    } catch (err) {
-      setVoidError(err instanceof ApiError ? err.message : 'No se pudo anular el movimiento')
-    } finally {
-      setSubmitting(false)
-    }
-  }
+  const visible = operations?.filter((op) => !onlyMovements || op.kind === 'INCOME' || op.kind === 'EXPENSE') ?? null
 
   return (
     <Card
-      title="Operaciones de mi turno"
-      description="Cobros, otros ingresos y gastos de esta caja, del más reciente al más antiguo."
+      title={onlyMovements ? 'Movimientos de mi caja' : 'Operaciones de mi turno'}
+      description={
+        onlyMovements
+          ? 'Otros ingresos y gastos de tu caja abierta, del más reciente al más antiguo.'
+          : 'Cobros, otros ingresos y gastos de esta caja, del más reciente al más antiguo.'
+      }
       className="mt-4"
     >
       {error ? (
         <Alert>{error}</Alert>
-      ) : operations === null ? (
+      ) : visible === null ? (
         <Skeleton className="h-16" />
-      ) : operations.length === 0 ? (
-        <p className="text-sm text-neutral-500">Aún no hay operaciones en este turno.</p>
+      ) : visible.length === 0 ? (
+        <p className="text-sm text-neutral-500">
+          {onlyMovements ? 'Aún no hay otros ingresos ni gastos en tu caja.' : 'Aún no hay operaciones en este turno.'}
+        </p>
       ) : (
         <ul className="divide-y divide-neutral-100">
-          {operations.map((op) => {
+          {visible.map((op) => {
             const isMovement = op.kind === 'INCOME' || op.kind === 'EXPENSE'
             const voided = op.status === 'VOIDED'
             return (
@@ -127,11 +189,15 @@ export function ShiftOperations({ cashSessionId, refreshKey, onChanged }: {
                     variant="ghost"
                     aria-label={`Anular ${op.operationNumber}`}
                     icon={<Ban aria-hidden className="size-4" />}
-                    onClick={() => {
-                      setReason('')
-                      setVoidError(null)
-                      setVoiding(op)
-                    }}
+                    onClick={() =>
+                      setVoiding({
+                        id: op.paymentId,
+                        type: op.kind as CashTransactionType,
+                        operationNumber: op.operationNumber,
+                        amount: op.chargedAmount,
+                        label: op.tariffName,
+                      })
+                    }
                   >
                     Anular
                   </Button>
@@ -142,34 +208,14 @@ export function ShiftOperations({ cashSessionId, refreshKey, onChanged }: {
         </ul>
       )}
 
-      <ConfirmDialog
-        open={voiding !== null}
-        title={`¿Anular ${voiding?.kind === 'EXPENSE' ? 'el gasto' : 'el ingreso'} ${voiding?.operationNumber ?? ''}?`}
-        confirmLabel="Sí, anular"
-        tone="danger"
-        loading={submitting}
-        onConfirm={confirmVoid}
-        onCancel={() => setVoiding(null)}
-      >
-        <p>
-          {formatCurrency(voiding?.chargedAmount ?? 0)} · {voiding?.tariffName}. Dejará de sumar en la caja y en los reportes, y
-          queda en auditoría.
-        </p>
-        <div className="mt-4">
-          <label className="label" htmlFor="void-reason">
-            Motivo de la anulación
-          </label>
-          <textarea
-            id="void-reason"
-            className="input min-h-20"
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            maxLength={255}
-            required
-          />
-          {voidError && <p className="mt-2 text-danger-700">{voidError}</p>}
-        </div>
-      </ConfirmDialog>
+      <VoidMovementDialog
+        target={voiding}
+        onClose={() => setVoiding(null)}
+        onVoided={() => {
+          load()
+          onChanged?.()
+        }}
+      />
     </Card>
   )
 }
@@ -178,7 +224,7 @@ export function ShiftOperations({ cashSessionId, refreshKey, onChanged }: {
  * RF-081 / BR-032: el administrador registra gastos (salidas de caja) en cualquier caja abierta, la
  * suya o la de un empleado. Un gasto en efectivo no puede superar el efectivo disponible.
  */
-export function CashExpensesAdmin() {
+export function CashExpensesAdmin({ refreshKey = 0, onRegistered }: { refreshKey?: number; onRegistered?: () => void } = {}) {
   const toast = useToast()
   const [sessions, setSessions] = useState<OpenCashSession[] | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -191,7 +237,8 @@ export function CashExpensesAdmin() {
       .catch((err) => setError(err instanceof ApiError ? err.message : 'No se pudieron cargar las cajas abiertas'))
   }
 
-  useEffect(load, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(load, [refreshKey])
 
   return (
     <Card
@@ -230,6 +277,7 @@ export function CashExpensesAdmin() {
         onRegistered={() => {
           toast('Gasto registrado')
           load()
+          onRegistered?.()
         }}
       />
     </Card>

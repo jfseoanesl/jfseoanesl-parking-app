@@ -18,6 +18,7 @@ import BackupPage from './pages/BackupPage'
 import SubscriptionsPage from './pages/SubscriptionsPage'
 import SubscriptionReceiptPage from './pages/SubscriptionReceiptPage'
 import CashTransactionReceiptPage from './pages/CashTransactionReceiptPage'
+import CashTransactionsPage from './pages/CashTransactionsPage'
 import EntryReceiptPage from './pages/EntryReceiptPage'
 import ReceiptPage from './pages/ReceiptPage'
 import HistoryPage from './pages/HistoryPage'
@@ -42,6 +43,7 @@ function App() {
               <Route path="parqueados" element={<ActiveSessionsPage />} />
               <Route path="cobros/:sessionId" element={<CheckoutPage />} />
               <Route path="caja" element={<CashRegisterPage />} />
+              <Route path="ingresos-gastos" element={<CashTransactionsPage />} />
               <Route path="usuarios" element={<UsersPage />} />
               <Route path="tarifas" element={<TariffsPage />} />
               <Route path="configuracion" element={<ConfigurationPage />} />

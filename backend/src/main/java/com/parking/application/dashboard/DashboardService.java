@@ -24,11 +24,14 @@ public class DashboardService {
     private final ConfigurationRepository configurationRepository;
     private final TimeProvider timeProvider;
     private final com.parking.domain.repository.SubscriptionPaymentRepository subscriptionPaymentRepository;
+    private final com.parking.domain.repository.CashTransactionRepository cashTransactionRepository;
 
     public DashboardService(ParkingSessionRepository parkingSessionRepository, PaymentRepository paymentRepository,
                              CashSessionRepository cashSessionRepository,
                              ConfigurationRepository configurationRepository, TimeProvider timeProvider,
-                             com.parking.domain.repository.SubscriptionPaymentRepository subscriptionPaymentRepository) {
+                             com.parking.domain.repository.SubscriptionPaymentRepository subscriptionPaymentRepository,
+                             com.parking.domain.repository.CashTransactionRepository cashTransactionRepository) {
+        this.cashTransactionRepository = cashTransactionRepository;
         this.subscriptionPaymentRepository = subscriptionPaymentRepository;
         this.parkingSessionRepository = parkingSessionRepository;
         this.paymentRepository = paymentRepository;
@@ -55,6 +58,12 @@ public class DashboardService {
                 .add(subscriptionPaymentRepository.findByPaidAtBetween(startOfDay, startOfTomorrow).stream()
                         .map(com.parking.domain.model.SubscriptionPayment::amount)
                         .reduce(BigDecimal.ZERO, BigDecimal::add));
+        // RF-084 / BR-035: otros ingresos y gastos activos de hoy; los ingresos tambien son recaudo.
+        var transactionsToday = cashTransactionRepository.findByCreatedAtBetween(startOfDay, startOfTomorrow).stream()
+                .filter(com.parking.domain.model.CashTransaction::isActive).toList();
+        BigDecimal otherIncomeToday = sum(transactionsToday, com.parking.domain.model.CashTransactionType.INCOME);
+        BigDecimal expensesToday = sum(transactionsToday, com.parking.domain.model.CashTransactionType.EXPENSE);
+        collectedToday = collectedToday.add(otherIncomeToday);
 
         long openCashSessions = cashSessionRepository.countOpen();
 
@@ -62,8 +71,14 @@ public class DashboardService {
                 .map(DashboardService::toMovement)
                 .toList();
 
-        return new DashboardData(occupied, maxCapacity, entriesToday, exitsToday, collectedToday, openCashSessions,
-                recentMovements);
+        return new DashboardData(occupied, maxCapacity, entriesToday, exitsToday, collectedToday, otherIncomeToday,
+                expensesToday, openCashSessions, recentMovements);
+    }
+
+    private static BigDecimal sum(java.util.List<com.parking.domain.model.CashTransaction> transactions,
+                                  com.parking.domain.model.CashTransactionType type) {
+        return transactions.stream().filter(t -> t.type() == type)
+                .map(com.parking.domain.model.CashTransaction::amount).reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
     private static DashboardData.RecentMovement toMovement(ParkingSession s) {

@@ -12,11 +12,15 @@ public record CashSessionSummaryResponse(
         BigDecimal otherCollected,
         BigDecimal totalCollected,
         int vehiclesServed,
-        BigDecimal expectedCash
+        BigDecimal expectedCash,
+        BigDecimal otherIncomeCollected,
+        BigDecimal expensesTotal,
+        BigDecimal expensesCash
 ) {
     public static CashSessionSummaryResponse from(CashSessionSummary summary) {
         return new CashSessionSummaryResponse(summary.initialBalance(), summary.cashCollected(),
                 summary.electronicCollected(), summary.otherCollected(), summary.totalCollected(),
-                summary.vehiclesServed(), summary.expectedCash());
+                summary.vehiclesServed(), summary.expectedCash(), summary.otherIncomeCollected(),
+                summary.expensesTotal(), summary.expensesCash());
     }
 }

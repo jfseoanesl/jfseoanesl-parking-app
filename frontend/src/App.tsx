@@ -17,6 +17,7 @@ import ReportsPage from './pages/ReportsPage'
 import BackupPage from './pages/BackupPage'
 import SubscriptionsPage from './pages/SubscriptionsPage'
 import SubscriptionReceiptPage from './pages/SubscriptionReceiptPage'
+import CashTransactionReceiptPage from './pages/CashTransactionReceiptPage'
 import EntryReceiptPage from './pages/EntryReceiptPage'
 import ReceiptPage from './pages/ReceiptPage'
 import HistoryPage from './pages/HistoryPage'
@@ -48,6 +49,7 @@ function App() {
               <Route path="respaldo" element={<BackupPage />} />
               <Route path="mensualidades" element={<SubscriptionsPage />} />
               <Route path="comprobantes-mensualidad/:paymentId" element={<SubscriptionReceiptPage />} />
+              <Route path="comprobantes-movimiento/:transactionId" element={<CashTransactionReceiptPage />} />
               <Route path="reportes" element={<ReportsPage />} />
               <Route path="historial" element={<HistoryPage />} />
               <Route path="comprobantes/:paymentId" element={<ReceiptPage />} />

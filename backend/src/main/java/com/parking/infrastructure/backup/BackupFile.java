@@ -49,6 +49,9 @@ public record BackupFile(
             List<com.parking.infrastructure.persistence.entity.SubscriptionVehicleEntity> subscriptionVehicles,
             List<CashSessionEntity> cashSessions,
             List<com.parking.infrastructure.persistence.entity.SubscriptionPaymentEntity> subscriptionPayments,
+            /** UC-014 (V9): catálogo de conceptos y otros ingresos/gastos de caja. */
+            List<com.parking.infrastructure.persistence.entity.CashConceptEntity> cashConcepts,
+            List<com.parking.infrastructure.persistence.entity.CashTransactionEntity> cashTransactions,
             List<ParkingSessionEntity> parkingSessions,
             List<PaymentEntity> payments,
             List<CashMovementEntity> cashMovements,
@@ -68,6 +71,8 @@ public record BackupFile(
             counts.put("subscriptionVehicles", size(subscriptionVehicles));
             counts.put("cashSessions", size(cashSessions));
             counts.put("subscriptionPayments", size(subscriptionPayments));
+            counts.put("cashConcepts", size(cashConcepts));
+            counts.put("cashTransactions", size(cashTransactions));
             counts.put("parkingSessions", size(parkingSessions));
             counts.put("payments", size(payments));
             counts.put("cashMovements", size(cashMovements));
@@ -80,7 +85,7 @@ public record BackupFile(
             return roles != null && users != null && vehicleTypes != null && paymentMethods != null
                     && configuration != null && tariffs != null && subscriptions != null
                     && subscriptionVehicles != null && cashSessions != null && subscriptionPayments != null
-                    && parkingSessions != null
+                    && cashConcepts != null && cashTransactions != null && parkingSessions != null
                     && payments != null && cashMovements != null && auditLogs != null && operationCounters != null;
         }
 

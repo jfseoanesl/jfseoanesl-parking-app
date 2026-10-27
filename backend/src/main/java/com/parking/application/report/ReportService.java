@@ -44,12 +44,15 @@ public class ReportService {
     private final UserRepository userRepository;
     private final TimeProvider timeProvider;
     private final com.parking.domain.repository.SubscriptionPaymentRepository subscriptionPaymentRepository;
+    private final com.parking.domain.repository.CashTransactionRepository cashTransactionRepository;
 
     public ReportService(ParkingSessionRepository parkingSessionRepository, PaymentRepository paymentRepository,
                           CashSessionRepository cashSessionRepository, VehicleTypeRepository vehicleTypeRepository,
                           TariffRepository tariffRepository, PaymentMethodRepository paymentMethodRepository,
                           UserRepository userRepository, TimeProvider timeProvider,
-                          com.parking.domain.repository.SubscriptionPaymentRepository subscriptionPaymentRepository) {
+                          com.parking.domain.repository.SubscriptionPaymentRepository subscriptionPaymentRepository,
+                          com.parking.domain.repository.CashTransactionRepository cashTransactionRepository) {
+        this.cashTransactionRepository = cashTransactionRepository;
         this.subscriptionPaymentRepository = subscriptionPaymentRepository;
         this.parkingSessionRepository = parkingSessionRepository;
         this.paymentRepository = paymentRepository;
@@ -116,6 +119,23 @@ public class ReportService {
             byEmployee.merge(nameOf(employeeNames, p.userId(),
                     id -> userRepository.findById(id).map(User::fullName).orElse("—")), p.amount(), BigDecimal::add);
         }
+        // RF-083 / BR-035: los otros ingresos activos tambien son recaudo; los gastos se restan en el neto.
+        var transactions = cashTransactionRepository.findByCreatedAtBetween(fromInstant, toInstant).stream()
+                .filter(com.parking.domain.model.CashTransaction::isActive).toList();
+        BigDecimal otherIncomeCollected = BigDecimal.ZERO;
+        BigDecimal expensesTotal = BigDecimal.ZERO;
+        for (var t : transactions) {
+            if (t.type() == com.parking.domain.model.CashTransactionType.EXPENSE) {
+                expensesTotal = expensesTotal.add(t.amount());
+                continue;
+            }
+            otherIncomeCollected = otherIncomeCollected.add(t.amount());
+            byMethod.merge(nameOf(paymentMethodNames, t.paymentMethodId(),
+                    id -> paymentMethodRepository.findById(id).map(pm -> pm.name()).orElse("—")), t.amount(), BigDecimal::add);
+            byEmployee.merge(nameOf(employeeNames, t.userId(),
+                    id -> userRepository.findById(id).map(User::fullName).orElse("—")), t.amount(), BigDecimal::add);
+        }
+        totalCollected = totalCollected.add(otherIncomeCollected);
         collectedByPaymentMethod = byMethod;
         collectedByEmployee = byEmployee;
         long subscriberExits = finalized.stream().filter(s -> s.subscriptionId() != null && s.appliedTariffId() == null).count();
@@ -149,7 +169,8 @@ public class ReportService {
 
         return new ReportData(from, to, entered.size(), finalized.size(), enteredByVehicleType, totalCollected,
                 collectedByPaymentMethod, collectedByTariff, averageDurationMinutes, peakHour, collectedByEmployee,
-                cancelled.size(), cashDifferencesSum, subscriptionCollected, subscriptionPayments.size(), subscriberExits);
+                cancelled.size(), cashDifferencesSum, subscriptionCollected, subscriptionPayments.size(), subscriberExits,
+                otherIncomeCollected, expensesTotal, totalCollected.subtract(expensesTotal));
     }
 
     private static String nameOf(Map<String, String> cache, String id, java.util.function.Function<String, String> resolver) {

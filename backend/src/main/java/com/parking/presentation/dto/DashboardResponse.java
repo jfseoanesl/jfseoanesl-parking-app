@@ -12,11 +12,13 @@ public record DashboardResponse(
         long entriesToday,
         long exitsToday,
         BigDecimal collectedToday,
+        BigDecimal otherIncomeToday,
+        BigDecimal expensesToday,
         long openCashSessions,
         List<DashboardData.RecentMovement> recentMovements
 ) {
     public static DashboardResponse from(DashboardData d) {
         return new DashboardResponse(d.occupied(), d.maxCapacity(), d.entriesToday(), d.exitsToday(),
-                d.collectedToday(), d.openCashSessions(), d.recentMovements());
+                d.collectedToday(), d.otherIncomeToday(), d.expensesToday(), d.openCashSessions(), d.recentMovements());
     }
 }

@@ -9,6 +9,7 @@ import { SelectField, TextField } from '../components/Form'
 import { Card, PageHeader } from '../components/Layout'
 import { VehicleIcon } from '../components/Badges'
 import { useToast } from '../components/Toast'
+import { CashConceptCatalog } from '../components/CashConceptCatalog'
 
 /** UC-013 (RF-010 a RF-015). Wireframe: 09-ux-specification.md §5.11. */
 export default function ConfigurationPage() {
@@ -175,6 +176,7 @@ export default function ConfigurationPage() {
         <div className="space-y-4">
           <VehicleTypeCatalog vehicleTypes={vehicleTypes} onChanged={load} />
           <PaymentMethodCatalog paymentMethods={paymentMethods} onChanged={load} />
+          <CashConceptCatalog />
         </div>
       </div>
     </div>

@@ -85,7 +85,7 @@ class BackupIntegrationTest {
         assertThat((String) JsonPath.read(backup, "$.schemaVersion")).isNotBlank();
         Map<String, Integer> counts = JsonPath.read(backup, "$.counts");
         assertThat(counts).containsKeys("roles", "users", "vehicleTypes", "paymentMethods", "configuration",
-                "tariffs", "cashSessions", "parkingSessions", "payments", "cashMovements", "auditLogs",
+                "tariffs", "cashSessions", "cashConcepts", "cashTransactions", "parkingSessions", "payments", "cashMovements", "auditLogs",
                 "operationCounters");
         for (Map.Entry<String, Integer> e : counts.entrySet()) {
             List<?> rows = JsonPath.read(backup, "$.tables." + e.getKey());

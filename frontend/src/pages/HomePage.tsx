@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowRight, Banknote, CircleArrowDown, CircleArrowUp, CirclePlus, Inbox, SquareParking, Wallet } from 'lucide-react'
+import { ArrowRight, Banknote, CircleArrowDown, CircleArrowUp, CircleMinus, CirclePlus, HandCoins, Inbox, SquareParking, Wallet } from 'lucide-react'
 import { useAuth } from '../auth/AuthContext'
 import { api, ApiError } from '../api/client'
 import type { DashboardSummary } from '../api/types'
@@ -194,7 +194,7 @@ function AdminDashboard() {
         />
       </div>
 
-      <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-3">
         <StatCard label="Ingresos hoy" value={data.entriesToday} icon={<CircleArrowDown aria-hidden className="size-5" />} />
         <StatCard label="Salidas hoy" value={data.exitsToday} icon={<CircleArrowUp aria-hidden className="size-5" />} tone="neutral" />
         <StatCard label="Vehículos parqueados" value={data.occupied} icon={<SquareParking aria-hidden className="size-5" />} />
@@ -203,6 +203,14 @@ function AdminDashboard() {
           value={data.openCashSessions}
           icon={<Wallet aria-hidden className="size-5" />}
           tone={data.openCashSessions > 0 ? 'success' : 'warning'}
+        />
+        {/* RF-084: los otros ingresos ya están incluidos en el recaudo de hoy. */}
+        <StatCard label="Otros ingresos hoy" value={formatCurrency(data.otherIncomeToday)} icon={<HandCoins aria-hidden className="size-5" />} tone="neutral" />
+        <StatCard
+          label="Gastos de caja hoy"
+          value={formatCurrency(data.expensesToday)}
+          icon={<CircleMinus aria-hidden className="size-5" />}
+          tone={data.expensesToday > 0 ? 'warning' : 'neutral'}
         />
       </div>
 

@@ -19,6 +19,9 @@ public record CashSession(
         BigDecimal expectedCash,
         BigDecimal reportedCash,
         BigDecimal difference,
+        /** BR-033: otros ingresos y gastos de la caja; foto al cierre (0 mientras está abierta). */
+        BigDecimal otherIncomeCollected,
+        BigDecimal expensesTotal,
         Instant createdAt,
         Instant updatedAt
 ) {

@@ -12,6 +12,9 @@ import com.parking.domain.model.PaymentMethod;
 import com.parking.domain.model.PaymentMethodCategory;
 import com.parking.domain.repository.CashMovementRepository;
 import com.parking.domain.repository.CashSessionRepository;
+import com.parking.domain.repository.CashTransactionRepository;
+import com.parking.domain.model.CashTransaction;
+import com.parking.domain.model.CashTransactionType;
 import com.parking.domain.repository.PaymentMethodRepository;
 import com.parking.domain.repository.PaymentRepository;
 import com.parking.domain.time.TimeProvider;
@@ -34,12 +37,15 @@ public class CashSessionService {
     private final AuditService auditService;
     private final TimeProvider timeProvider;
     private final com.parking.domain.repository.SubscriptionPaymentRepository subscriptionPaymentRepository;
+    private final CashTransactionRepository cashTransactionRepository;
 
     public CashSessionService(CashSessionRepository cashSessionRepository, PaymentRepository paymentRepository,
                                PaymentMethodRepository paymentMethodRepository,
                                CashMovementRepository cashMovementRepository, AuditService auditService,
-                               TimeProvider timeProvider, com.parking.domain.repository.SubscriptionPaymentRepository subscriptionPaymentRepository) {
+                               TimeProvider timeProvider, com.parking.domain.repository.SubscriptionPaymentRepository subscriptionPaymentRepository,
+                               CashTransactionRepository cashTransactionRepository) {
         this.subscriptionPaymentRepository = subscriptionPaymentRepository;
+        this.cashTransactionRepository = cashTransactionRepository;
         this.cashSessionRepository = cashSessionRepository;
         this.paymentRepository = paymentRepository;
         this.paymentMethodRepository = paymentMethodRepository;
@@ -57,7 +63,8 @@ public class CashSessionService {
 
         Instant now = timeProvider.now();
         CashSession session = new CashSession(UUID.randomUUID().toString(), employeeId, CashSessionStatus.OPEN,
-                now, initialBalance, null, null, null, null, null, null, null, null, null, now, now);
+                now, initialBalance, null, null, null, null, null, null, null, null, null,
+                BigDecimal.ZERO, BigDecimal.ZERO, now, now);
         return cashSessionRepository.save(session);
     }
 
@@ -97,12 +104,35 @@ public class CashSessionService {
             }
         }
 
+        // BR-033: los otros ingresos suman en su medio de pago; los gastos van aparte y solo los de
+        // efectivo salen del cajon. Los anulados (BR-035) no cuentan.
+        BigDecimal otherIncome = BigDecimal.ZERO;
+        BigDecimal expenses = BigDecimal.ZERO;
+        BigDecimal expensesCash = BigDecimal.ZERO;
+        for (CashTransaction transaction : cashTransactionRepository.findByCashSessionId(session.id())) {
+            if (!transaction.isActive()) continue;
+            PaymentMethodCategory category = paymentMethodRepository.findById(transaction.paymentMethodId())
+                    .map(PaymentMethod::category)
+                    .orElse(PaymentMethodCategory.OTHER);
+            if (transaction.type() == CashTransactionType.EXPENSE) {
+                expenses = expenses.add(transaction.amount());
+                if (category == PaymentMethodCategory.CASH) expensesCash = expensesCash.add(transaction.amount());
+                continue;
+            }
+            otherIncome = otherIncome.add(transaction.amount());
+            switch (category) {
+                case CASH -> cash = cash.add(transaction.amount());
+                case ELECTRONIC -> electronic = electronic.add(transaction.amount());
+                case OTHER -> other = other.add(transaction.amount());
+            }
+        }
+
         BigDecimal total = cash.add(electronic).add(other);
         // BR-022/RF-055: solo el efectivo afecta lo que fisicamente debe haber en el cajon.
-        BigDecimal expectedCash = session.initialBalance().add(cash);
+        BigDecimal expectedCash = session.initialBalance().add(cash).subtract(expensesCash);
 
         return new CashSessionSummary(session.initialBalance(), cash, electronic, other, total,
-                payments.size(), expectedCash);
+                payments.size(), expectedCash, otherIncome, expenses, expensesCash);
     }
 
     /**
@@ -141,7 +171,7 @@ public class CashSessionService {
                 session.openedAt(), session.initialBalance(), now, summary.cashCollected(),
                 summary.electronicCollected(), summary.otherCollected(), summary.totalCollected(),
                 summary.vehiclesServed(), summary.expectedCash(), reportedCash, difference,
-                session.createdAt(), now);
+                summary.otherIncomeCollected(), summary.expensesTotal(), session.createdAt(), now);
 
         CashSession saved = cashSessionRepository.save(closed);
         // RF-066 / BR-025: el cierre de caja queda en auditoria (antes no se registraba).
@@ -151,6 +181,8 @@ public class CashSessionService {
                         + ",\"expectedCash\":" + summary.expectedCash().toPlainString()
                         + ",\"reportedCash\":" + reportedCash.toPlainString()
                         + ",\"difference\":" + difference.toPlainString()
+                        + ",\"otherIncomeCollected\":" + summary.otherIncomeCollected().toPlainString()
+                        + ",\"expensesTotal\":" + summary.expensesTotal().toPlainString()
                         + ",\"vehiclesServed\":" + summary.vehiclesServed() + "}");
         return saved;
     }
@@ -182,7 +214,7 @@ public class CashSessionService {
                 session.openedAt(), session.initialBalance(), session.closedAt(), session.cashCollected(),
                 session.electronicCollected(), session.otherCollected(), session.totalCollected(),
                 session.vehiclesServed(), session.expectedCash(), newReportedCash, newDifference,
-                session.createdAt(), now);
+                session.otherIncomeCollected(), session.expensesTotal(), session.createdAt(), now);
         CashSession saved = cashSessionRepository.save(updated);
 
         auditService.record(adminUserId, "CASH_SESSION_ADJUSTED", "CashSession", cashSessionId,

@@ -18,6 +18,9 @@ public interface CashSessionRepository {
     /** RF-060 a RF-063: diferencias de caja del período (Fase 8). */
     List<CashSession> findClosedByClosedAtBetween(Instant from, Instant to);
 
+    /** RF-081: cajas abiertas, para que el administrador elija de cuál sale un gasto. */
+    List<CashSession> findOpen();
+
     /** RF-064: cuántas cajas están abiertas ahora mismo (dashboard). */
     long countOpen();
 }

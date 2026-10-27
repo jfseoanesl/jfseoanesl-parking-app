@@ -114,6 +114,12 @@
 | RF-055 | El empleado debe poder cerrar caja, y el sistema debe mostrar: saldo inicial, cobros en efectivo, cobros electrónicos, otros medios, total recaudado, cantidad de vehículos atendidos, efectivo esperado, efectivo reportado, diferencia. | Empleado | M | — |
 | RF-056 | El sistema debe guardar cada cierre de caja como registro histórico inmutable. | — | M | BR-023 |
 | RF-057 | El sistema no debe permitir modificar un cierre de caja finalizado sin intervención administrativa auditada. | — | M | BR-023 |
+| RF-079 | El administrador debe poder mantener un catálogo de conceptos de otros ingresos y de gastos de caja (crear, renombrar, activar/desactivar); el nombre es único por tipo. | Administrador | S | BR-032 |
+| RF-080 | Cualquier usuario con caja abierta debe poder registrar en ella otro ingreso (concepto activo, descripción, valor y medio de pago). | Empleado, Administrador | S | BR-032, BR-033, BR-034 |
+| RF-081 | El administrador debe poder registrar un gasto o salida de caja en cualquier caja abierta (la suya o la de un empleado); un gasto en efectivo no puede superar el efectivo disponible. | Administrador | S | BR-032, BR-033, BR-034 |
+| RF-082 | Cada otro ingreso o gasto debe tener un comprobante imprimible con su número OP-, visible para el administrador, quien lo registró y el dueño de la caja. | Empleado, Administrador | S | BR-034, BR-017 |
+| RF-083 | El administrador debe poder anular un otro ingreso o gasto, con motivo, mientras la caja sigue abierta; y consultar y exportar (Excel, PDF, CSV) un reporte de ingresos y gastos por período, tipo, concepto y estado. El reporte general incluye otros ingresos, gastos y neto. | Administrador | S | BR-035 |
+| RF-084 | El Dashboard debe mostrar los otros ingresos y los gastos de caja del día; los otros ingresos suman en el recaudo de hoy. | Administrador | S | BR-033 |
 
 ## Módulo: Historial de operaciones
 

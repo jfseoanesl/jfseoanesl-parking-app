@@ -369,6 +369,21 @@ Formulario de tarifa (crear/editar) en pantalla completa o panel lateral en desk
   - **Estado de cartera:** tabla en desktop y tarjetas en móvil. Muestra primero lo que requiere gestión y resalta la mora en rojo.
   - **Detalle de pagos:** con enlace al comprobante y total al pie.
 
+### 5.8.2 Reportes → pestaña Ingresos y gastos (RF-083)
+
+- Tercera opción del selector superior: **General | Mensualidades | Ingresos y gastos**.
+- Filtros: período, tipo (todos, ingresos o gastos), concepto y estado (todos, activos o anulados). Exportar a Excel, PDF y CSV con los filtros activos.
+- Indicadores: otros ingresos, gastos de caja, neto y anulados. Tablas "Totales por concepto" y "Detalle de movimientos", con enlace al comprobante. Los gastos se muestran con signo "−" en rojo y los anulados tachados.
+- El reporte general agrega las tarjetas "Otros ingresos", "Gastos de caja" y "Neto"; el Dashboard, "Otros ingresos hoy" y "Gastos de caja hoy".
+
+### 5.6.1 Caja → otros ingresos y gastos (UC-014)
+
+- Con la caja abierta, el encabezado tiene **Registrar otro ingreso**: diálogo con concepto, descripción, valor y medio de pago. Al guardar muestra el número OP- y **Ver comprobante**.
+- El resumen del turno muestra "Incluye otros ingresos" y "Gastos de caja"; el efectivo esperado ya descuenta los gastos en efectivo.
+- Las operaciones del turno muestran badges "Otro ingreso" y "Gasto", el signo del valor y el estado "Anulado" con su motivo. El administrador tiene **Anular** (diálogo con motivo obligatorio).
+- Solo el administrador ve la tarjeta **Gastos de caja**: las cajas abiertas con su efectivo disponible y **Registrar gasto** en cada una.
+- Configuración (administrador) agrega **Conceptos de caja**: pestañas Otros ingresos / Gastos, renombrar, activar/desactivar y agregar.
+
 ### 5.13 Mensualidades (RF-074 a RF-077)
 
 - Lista de tarjetas con buscador por cliente, documento o placa. Cada tarjeta muestra el cliente, un badge de estado (Al día / En gracia / Vencida / Sin pago / Inactiva), el valor y el día de corte, "Pagada hasta", las placas y qué vehículo está dentro.

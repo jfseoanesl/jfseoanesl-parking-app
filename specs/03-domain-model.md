@@ -147,9 +147,10 @@ El modelo preliminar del prompt (§24) sugiere `Tariff` y `TariffRule` como enti
 | otherCollected | decimal | calculado al cierre |
 | totalCollected | decimal | calculado al cierre |
 | vehiclesServed | integer | calculado al cierre |
-| expectedCash | decimal | `initialBalance + cashCollected` |
+| expectedCash | decimal | `initialBalance + cashCollected − gastos en efectivo` (BR-033) |
 | reportedCash | decimal | ingresado por el empleado al cierre |
 | difference | decimal | `reportedCash - expectedCash` |
+| otherIncomeCollected / expensesTotal | decimal | foto al cierre de los otros ingresos y gastos activos (BR-033); 0 mientras está abierta |
 | createdAt / updatedAt | timestamp | no nulos |
 
 **Invariantes:** BR-022 (una caja abierta por empleado a la vez), BR-023 (cierre inmutable salvo corrección administrativa auditada).
@@ -168,6 +169,27 @@ El modelo preliminar del prompt (§24) sugiere `Tariff` y `TariffRule` como enti
 | createdAt | timestamp | no nulo |
 
 **Propósito:** ledger auditable de todo lo que afecta el efectivo/recaudo de una caja, más allá de los pagos automáticos (permite futuros ajustes manuales sin modificar `Payment`).
+
+### CashConcept y CashTransaction (UC-014, ADR-012)
+
+**CashConcept:** `id`, `type` (`INCOME` \| `EXPENSE`), `name` (único por tipo), `active`. Catálogo del administrador (RF-079).
+
+**CashTransaction:**
+
+| Campo | Tipo | Restricciones |
+|---|---|---|
+| id | UUID | PK |
+| cashSessionId | UUID | FK → CashSession (abierta al registrar), no nulo |
+| type | enum | `INCOME` \| `EXPENSE`, no nulo |
+| conceptId | UUID | FK → CashConcept (activo y del mismo tipo) |
+| description | string | opcional, máx. 255 |
+| amount | decimal | > 0 |
+| paymentMethodId | UUID | FK → PaymentMethod (activo) |
+| operationNumber | string | `OP-` compartido con los cobros, único (BR-034) |
+| userId | UUID | FK → User, quien lo registró |
+| createdAt | timestamp | no nulo |
+| status | enum | `ACTIVE` \| `VOIDED` (BR-035) |
+| voidReason / voidedBy / voidedAt | — | datos de la anulación |
 
 ### Configuration
 
@@ -233,6 +255,8 @@ ParkingSession 1───1 Payment
 PaymentMethod 1───N Payment
 CashSession 1───N Payment
 CashSession 1───N CashMovement
+CashSession 1───N CashTransaction
+CashConcept 1───N CashTransaction
 Payment 1───1 CashMovement  (cuando type = PAYMENT)
 User 1───N CashSession
 User 1───N AuditLog

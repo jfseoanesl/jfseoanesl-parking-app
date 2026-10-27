@@ -10,6 +10,9 @@ public record DashboardData(
         long entriesToday,
         long exitsToday,
         BigDecimal collectedToday,
+        /** RF-084: otros ingresos de hoy (ya incluidos en collectedToday) y gastos de caja de hoy. */
+        BigDecimal otherIncomeToday,
+        BigDecimal expensesToday,
         long openCashSessions,
         List<RecentMovement> recentMovements
 ) {

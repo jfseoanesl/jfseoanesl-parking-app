@@ -20,13 +20,16 @@ public record CashSessionResponse(
         Integer vehiclesServed,
         BigDecimal expectedCash,
         BigDecimal reportedCash,
-        BigDecimal difference
+        BigDecimal difference,
+        BigDecimal otherIncomeCollected,
+        BigDecimal expensesTotal
 ) {
     public static CashSessionResponse from(CashSession session) {
         return new CashSessionResponse(
                 session.id(), session.employeeId(), session.status().name(), session.openedAt(),
                 session.initialBalance(), session.closedAt(), session.cashCollected(),
                 session.electronicCollected(), session.otherCollected(), session.totalCollected(),
-                session.vehiclesServed(), session.expectedCash(), session.reportedCash(), session.difference());
+                session.vehiclesServed(), session.expectedCash(), session.reportedCash(), session.difference(),
+                session.otherIncomeCollected(), session.expensesTotal());
     }
 }

@@ -56,6 +56,8 @@ public class DatabaseBackupService {
     private final com.parking.infrastructure.persistence.jpa.SpringDataSubscriptionRepository subscriptions;
     private final com.parking.infrastructure.persistence.jpa.SpringDataSubscriptionVehicleRepository subscriptionVehicles;
     private final com.parking.infrastructure.persistence.jpa.SpringDataSubscriptionPaymentRepository subscriptionPayments;
+    private final com.parking.infrastructure.persistence.jpa.SpringDataCashConceptRepository cashConcepts;
+    private final com.parking.infrastructure.persistence.jpa.SpringDataCashTransactionRepository cashTransactions;
     private final JdbcTemplate jdbcTemplate;
     private final AuditService auditService;
     private final TimeProvider timeProvider;
@@ -74,7 +76,11 @@ public class DatabaseBackupService {
                                  AuditService auditService, TimeProvider timeProvider,
                                  com.parking.infrastructure.persistence.jpa.SpringDataSubscriptionRepository subscriptions,
                                  com.parking.infrastructure.persistence.jpa.SpringDataSubscriptionVehicleRepository subscriptionVehicles,
-                                 com.parking.infrastructure.persistence.jpa.SpringDataSubscriptionPaymentRepository subscriptionPayments) {
+                                 com.parking.infrastructure.persistence.jpa.SpringDataSubscriptionPaymentRepository subscriptionPayments,
+                                 com.parking.infrastructure.persistence.jpa.SpringDataCashConceptRepository cashConcepts,
+                                 com.parking.infrastructure.persistence.jpa.SpringDataCashTransactionRepository cashTransactions) {
+        this.cashConcepts = cashConcepts;
+        this.cashTransactions = cashTransactions;
         this.subscriptions = subscriptions;
         this.subscriptionVehicles = subscriptionVehicles;
         this.subscriptionPayments = subscriptionPayments;
@@ -109,7 +115,8 @@ public class DatabaseBackupService {
         Tables tables = new Tables(
                 roles.findAll(), users.findAll(), vehicleTypes.findAll(), paymentMethods.findAll(),
                 configuration.findAll(), tariffs.findAll(), subscriptions.findAll(), subscriptionVehicles.findAll(),
-                cashSessions.findAll(), subscriptionPayments.findAll(), parkingSessions.findAll(),
+                cashSessions.findAll(), subscriptionPayments.findAll(), cashConcepts.findAll(), cashTransactions.findAll(),
+                parkingSessions.findAll(),
                 payments.findAll(), cashMovements.findAll(), auditLogs.findAll(), readCounters());
         Map<String, Integer> counts = tables.counts();
         BackupFile backup = new BackupFile(BackupFile.FORMAT, BackupFile.FORMAT_VERSION, schemaVersion(),
@@ -135,6 +142,8 @@ public class DatabaseBackupService {
         payments.deleteAllInBatch();
         parkingSessions.deleteAllInBatch();
         subscriptionPayments.deleteAllInBatch();
+        cashTransactions.deleteAllInBatch();
+        cashConcepts.deleteAllInBatch();
         cashSessions.deleteAllInBatch();
         subscriptionVehicles.deleteAllInBatch();
         subscriptions.deleteAllInBatch();
@@ -158,6 +167,8 @@ public class DatabaseBackupService {
         insert(subscriptionVehicles, t.subscriptionVehicles());
         insert(cashSessions, t.cashSessions());
         insert(subscriptionPayments, t.subscriptionPayments());
+        insert(cashConcepts, t.cashConcepts());
+        insert(cashTransactions, t.cashTransactions());
         insert(parkingSessions, t.parkingSessions());
         insert(payments, t.payments());
         insert(cashMovements, t.cashMovements());

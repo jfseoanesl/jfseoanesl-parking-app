@@ -30,6 +30,9 @@ public record ReportContent(List<Indicator> indicators, List<Breakdown> breakdow
     public static ReportContent from(ReportData d) {
         List<Indicator> indicators = List.of(
                 new Indicator("Total recaudado", Kind.MONEY, d.totalCollected()),
+                new Indicator("Otros ingresos", Kind.MONEY, d.otherIncomeCollected()),
+                new Indicator("Gastos de caja", Kind.MONEY, d.expensesTotal()),
+                new Indicator("Neto (recaudo - gastos)", Kind.MONEY, d.netCollected()),
                 new Indicator("Vehículos ingresados", Kind.COUNT, BigDecimal.valueOf(d.vehiclesEntered())),
                 new Indicator("Vehículos finalizados", Kind.COUNT, BigDecimal.valueOf(d.vehiclesFinalized())),
                 new Indicator("Parqueos anulados", Kind.COUNT, BigDecimal.valueOf(d.cancelledSessions())),

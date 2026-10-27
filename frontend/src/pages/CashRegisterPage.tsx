@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { ArrowRightLeft, Banknote, Car, CircleCheck, CreditCard, Lock, Wallet } from 'lucide-react'
+import { ArrowRightLeft, Banknote, Car, CircleCheck, CreditCard, Lock, PlusCircle, Wallet } from 'lucide-react'
 import { api, ApiError } from '../api/client'
 import type { CashSession, CashSessionSummary } from '../api/types'
 import { formatCurrency, formatTime } from '../lib/format'
@@ -10,7 +10,8 @@ import { Card, PageHeader, StatCard, SummaryRow } from '../components/Layout'
 import { Badge } from '../components/Badges'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { useAuth } from '../auth/AuthContext'
-import { ClosedCashSessionsAdmin, ShiftOperations } from './CashSections'
+import { CashExpensesAdmin, ClosedCashSessionsAdmin, ShiftOperations } from './CashSections'
+import { CashTransactionDialog } from '../components/CashTransactionDialog'
 
 /** Diferencia de arqueo: 0 cuadra, negativa falta dinero, positiva sobra (BR-023.1). */
 function differenceStyle(diff: number): { className: string; label: string } {
@@ -28,7 +29,12 @@ export default function CashRegisterPage() {
   return (
     <>
       <CurrentCashRegister />
-      {user?.role === 'ADMIN' && <ClosedCashSessionsAdmin />}
+      {user?.role === 'ADMIN' && (
+        <>
+          <CashExpensesAdmin />
+          <ClosedCashSessionsAdmin />
+        </>
+      )}
     </>
   )
 }
@@ -44,6 +50,8 @@ function CurrentCashRegister() {
   const [openingBalance, setOpeningBalance] = useState('')
   const [reportedCash, setReportedCash] = useState('')
   const [closed, setClosed] = useState<CashSession | null>(null)
+  const [registeringIncome, setRegisteringIncome] = useState(false)
+  const [movements, setMovements] = useState(0)
 
   function loadCurrent() {
     api
@@ -127,6 +135,10 @@ function CurrentCashRegister() {
           <dl className="divide-y divide-neutral-100 px-6 py-2">
             <SummaryRow label="Saldo inicial" value={formatCurrency(closed.initialBalance)} />
             <SummaryRow label="Total recaudado" value={formatCurrency(closed.totalCollected ?? 0)} />
+            {closed.otherIncomeCollected > 0 && (
+              <SummaryRow label="Incluye otros ingresos" value={formatCurrency(closed.otherIncomeCollected)} />
+            )}
+            {closed.expensesTotal > 0 && <SummaryRow label="Gastos de caja" value={`− ${formatCurrency(closed.expensesTotal)}`} />}
             <SummaryRow label="Efectivo esperado" value={formatCurrency(closed.expectedCash ?? 0)} />
             <SummaryRow label="Efectivo reportado" value={formatCurrency(closed.reportedCash ?? 0)} />
             <SummaryRow
@@ -193,6 +205,11 @@ function CurrentCashRegister() {
             <Badge tone="success">Abierta</Badge> desde las {formatTime(session.openedAt)}
           </span>
         }
+        actions={
+          <Button variant="secondary" icon={<PlusCircle aria-hidden className="size-5" />} onClick={() => setRegisteringIncome(true)}>
+            Registrar otro ingreso
+          </Button>
+        }
       />
 
       {summary && (
@@ -219,6 +236,19 @@ function CurrentCashRegister() {
                 }
                 value={formatCurrency(summary.otherCollected)}
               />
+              {summary.otherIncomeCollected > 0 && (
+                <SummaryRow label="Incluye otros ingresos" value={formatCurrency(summary.otherIncomeCollected)} />
+              )}
+              {summary.expensesTotal > 0 && (
+                <SummaryRow
+                  label="Gastos de caja"
+                  value={`− ${formatCurrency(summary.expensesTotal)}`}
+                  valueClassName="text-danger-700"
+                />
+              )}
+              {summary.expensesCash !== summary.expensesTotal && (
+                <SummaryRow label="Gastos en efectivo" value={`− ${formatCurrency(summary.expensesCash)}`} />
+              )}
               <SummaryRow emphasis label="Efectivo esperado en caja" value={formatCurrency(summary.expectedCash)} />
             </dl>
           </Card>
@@ -272,7 +302,23 @@ function CurrentCashRegister() {
         . Después del cierre no podrás registrar más cobros en esta caja.
       </ConfirmDialog>
 
-      <ShiftOperations cashSessionId={session.id} refreshKey={summary?.vehiclesServed ?? 0} />
+      <CashTransactionDialog
+        type={registeringIncome ? 'INCOME' : null}
+        onClose={() => setRegisteringIncome(false)}
+        onRegistered={() => {
+          setMovements((n) => n + 1)
+          loadCurrent()
+        }}
+      />
+
+      <ShiftOperations
+        cashSessionId={session.id}
+        refreshKey={(summary?.vehiclesServed ?? 0) + movements + (summary?.totalCollected ?? 0) + (summary?.expensesTotal ?? 0)}
+        onChanged={() => {
+          setMovements((n) => n + 1)
+          loadCurrent()
+        }}
+      />
     </div>
   )
 }

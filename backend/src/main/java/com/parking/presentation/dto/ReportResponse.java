@@ -23,12 +23,16 @@ public record ReportResponse(
         BigDecimal cashDifferencesSum,
         BigDecimal subscriptionCollected,
         long subscriptionPayments,
-        long subscriberExits
+        long subscriberExits,
+        BigDecimal otherIncomeCollected,
+        BigDecimal expensesTotal,
+        BigDecimal netCollected
 ) {
     public static ReportResponse from(ReportData d) {
         return new ReportResponse(d.from(), d.to(), d.vehiclesEntered(), d.vehiclesFinalized(),
                 d.enteredByVehicleType(), d.totalCollected(), d.collectedByPaymentMethod(), d.collectedByTariff(),
                 d.averageDurationMinutes(), d.peakHour(), d.collectedByEmployee(), d.cancelledSessions(),
-                d.cashDifferencesSum(), d.subscriptionCollected(), d.subscriptionPayments(), d.subscriberExits());
+                d.cashDifferencesSum(), d.subscriptionCollected(), d.subscriptionPayments(), d.subscriberExits(),
+                d.otherIncomeCollected(), d.expensesTotal(), d.netCollected());
     }
 }

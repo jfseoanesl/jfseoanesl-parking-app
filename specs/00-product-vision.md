@@ -383,3 +383,10 @@ transferencia real de la instalación SQLite a una MySQL temporal, con conteos y
 - Decisiones del usuario: la hora adicional se cobra desde el minuto 61, sin minutos gratis, y en permanencias de más de 24 h el remanente cobra todas sus fracciones al valor normal.
 - Las tarifas existentes no cambian (campo nulo).
 
+**Otros ingresos y gastos de caja (2026-10-27):** UC-014, RF-079 a RF-084, BR-032 a BR-035, ADR-012 y migración V9.
+- Cualquier usuario registra otros ingresos en su caja abierta; solo el administrador registra gastos, en la caja abierta que elija, y anula movimientos con motivo mientras la caja sigue abierta.
+- Los conceptos vienen de un catálogo que administra el administrador (Configuración); cada movimiento tiene comprobante con el mismo consecutivo OP- de los cobros.
+- Arqueo: los otros ingresos suman por medio de pago; los gastos en efectivo restan del efectivo esperado, y un gasto en efectivo no puede superar lo disponible.
+- Reportes: pestaña "Ingresos y gastos" (filtros, totales por concepto, detalle y exportación) y, en el general, otros ingresos, gastos y neto. Dashboard: otros ingresos y gastos del día.
+- Verificado: backend 119/119 en SQLite y MySQL, frontend 30/30 y E2E 25/25.
+

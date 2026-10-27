@@ -37,7 +37,9 @@ El proyecto se desarrolló con *Spec-Driven Development*. La especificación com
   - el pago queda registrado con un consecutivo **`OP-000001`** y un comprobante imprimible.
 - **Caja:**
   - apertura con saldo inicial y operaciones del turno;
-  - cierre con **arqueo**: efectivo esperado contra efectivo contado, con la diferencia. Solo el efectivo cuenta como físico.
+  - cierre con **arqueo**: efectivo esperado contra efectivo contado, con la diferencia. Solo el efectivo cuenta como físico;
+  - **otros ingresos** (lavado, venta de artículos, etc.): cualquier usuario los registra en su caja, con concepto, medio de pago y comprobante;
+  - **gastos o salidas de caja**: solo el administrador, desde cualquier caja abierta; un gasto en efectivo no puede superar lo disponible y se descuenta del efectivo esperado. El administrador puede anularlos con motivo mientras la caja siga abierta.
 - **Mensualidades:**
   - cada cliente mensual tiene un valor y un día de corte pactados y **placas autorizadas**; solo una puede estar dentro a la vez;
   - el ingreso de una placa autorizada se reconoce automáticamente;
@@ -45,7 +47,7 @@ El proyecto se desarrolló con *Spec-Driven Development*. La especificación com
   - el pago mensual se cobra en caja y genera comprobante.
 
 **Administración**
-- **Dashboard:** ocupación frente a capacidad, ingresos, salidas y **recaudo de hoy** (incluye mensualidades), cajas abiertas y últimos movimientos.
+- **Dashboard:** ocupación frente a capacidad, ingresos, salidas, **recaudo de hoy** (incluye mensualidades y otros ingresos), gastos de caja del día, cajas abiertas y últimos movimientos.
 - **Tarifas:**
   - por tiempo (fracción y redondeo), mañana, tarde o día completo, con tolerancia, tiempo mínimo, vigencia y prioridad;
   - cada cambio se audita con el valor anterior y el nuevo.
@@ -54,13 +56,14 @@ El proyecto se desarrolló con *Spec-Driven Development*. La especificación com
   - datos del parqueadero, capacidad, zona horaria y moneda;
   - formato del comprobante y si se ofrece imprimir al ingreso y/o a la salida;
   - días de gracia de las mensualidades;
-  - catálogos de tipos de vehículo y medios de pago.
+  - catálogos de tipos de vehículo, medios de pago y **conceptos de caja** (otros ingresos y gastos).
 - **Historial** de sesiones con filtros por fecha, placa, estado y empleado, y reimpresión de comprobantes.
 - **Correcciones de caja** sobre cierres ya finalizados (con motivo, auditadas) y **anulación** de ingresos (con motivo, auditada).
 - **Reportes:**
-  - **General:** diario, semanal, mensual o por rango. Vehículos ingresados, finalizados y anulados; recaudo por medio de pago, tarifa y empleado; duración promedio; hora pico; diferencias de caja.
+  - **General:** diario, semanal, mensual o por rango. Vehículos ingresados, finalizados y anulados; recaudo por medio de pago, tarifa y empleado; duración promedio; hora pico; diferencias de caja; otros ingresos, gastos y neto.
   - **Mensualidades:** estado de cartera con **días de mora**, detalle de pagos y cartera vencida estimada. Filtros por período, varios estados a la vez y cliente/documento/placa.
-  - Ambos se exportan a **Excel, PDF y CSV**.
+  - **Ingresos y gastos:** otros ingresos y gastos de caja por período, tipo, concepto y estado, con totales por concepto y detalle.
+  - Todos se exportan a **Excel, PDF y CSV**.
 - **Auditoría** de cambios administrativos y operaciones sensibles, con filtros por entidad, usuario y fechas.
 - **Respaldo:**
   - exporta toda la base de datos a un **JSON portable**;
@@ -247,7 +250,7 @@ En desarrollo no se necesita ninguna. En producción van en `.env` (plantilla: [
 - **Permisos:** se controlan en el servidor por rol, tanto por método como por URL en las rutas administrativas. La interfaz solo oculta lo que el usuario no puede usar.
 - **Navegador:** cabeceras de seguridad y CSP estricta en nginx.
 - **Errores y exportaciones:** los errores no exponen detalles internos, y los archivos CSV y Excel se protegen contra la inyección de fórmulas.
-- **Auditoría:** se auditan tarifas, configuración, usuarios, anulaciones, cierres y correcciones de caja, mensualidades y respaldos.
+- **Auditoría:** se auditan tarifas, configuración, usuarios, anulaciones, cierres y correcciones de caja, otros ingresos y gastos (y sus anulaciones), conceptos de caja, mensualidades y respaldos.
 
 Ver [`specs/10-security-specification.md`](specs/10-security-specification.md), que incluye la revisión OWASP Top 10.
 
@@ -256,7 +259,7 @@ Ver [`specs/10-security-specification.md`](specs/10-security-specification.md), 
 ```text
 ├── backend/                 API Spring Boot (Java 21)
 │   └── src/main/resources/db/
-│       ├── migration/       Migraciones Flyway comunes (V1…V7)
+│       ├── migration/       Migraciones Flyway comunes (V1…V9)
 │       ├── seed/            Datos de prueba (solo desarrollo y pruebas)
 │       └── vendor/mysql/    Migraciones exclusivas de MySQL
 ├── frontend/                PWA React + Vite (nginx en la imagen Docker)
@@ -300,3 +303,4 @@ Ver [`specs/10-security-specification.md`](specs/10-security-specification.md), 
 | [009](specs/decisions/ADR-009-respaldo-base-de-datos.md) | Respaldo de la base de datos |
 | [010](specs/decisions/ADR-010-mensualidades.md) | Mensualidades |
 | [011](specs/decisions/ADR-011-ci-cd.md) | CI/CD con GitHub Actions y Docker Hub |
+| [012](specs/decisions/ADR-012-ingresos-gastos-caja.md) | Otros ingresos y gastos de caja |

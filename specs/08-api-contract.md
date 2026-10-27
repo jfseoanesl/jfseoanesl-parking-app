@@ -56,16 +56,33 @@ Convenciones: autenticación por cookie de sesión (`10-security-specification.m
 | GET | `/api/cash-sessions` | Admin | Cajas cerradas por fecha de cierre (`?from=&to=`), base para la corrección de RF-057. |
 | GET | `/api/cash-sessions/{id}/payments` | Admin, Empleado (dueño) | Cobros de la caja (RF-059); `403` si la caja es de otro empleado. |
 | POST | `/api/cash-sessions/{id}/adjustments` | Admin | Corrección administrativa auditada sobre un cierre finalizado (BR-023). |
+| GET | `/api/cash-sessions/open` | Admin | Cajas abiertas con su efectivo esperado actual, para elegir de cuál sale un gasto (RF-081). |
+
+El resumen (`/summary`) y la caja cerrada incluyen `otherIncomeCollected` y `expensesTotal`; el resumen, además, `expensesCash` (BR-033). Las operaciones de la caja (`/payments`) incluyen los `kind` `INCOME` y `EXPENSE`, con `status` (`ACTIVE`/`VOIDED`) y `voidReason`.
+
+## Otros ingresos y gastos de caja (UC-014)
+
+| Método | Ruta | Rol | Descripción |
+|---|---|---|---|
+| GET | `/api/cash-concepts?type=&active=` | Admin, Empleado | Catálogo de conceptos (RF-079). |
+| POST | `/api/cash-concepts` | Admin | Crea un concepto `{type, name}`. `409 CASH_CONCEPT_DUPLICATED` si el nombre ya existe en ese tipo. |
+| PUT | `/api/cash-concepts/{id}` | Admin | Renombra `{name}`. |
+| PATCH | `/api/cash-concepts/{id}/status` | Admin | Activa o desactiva `{active}`. |
+| POST | `/api/cash-transactions` | Admin, Empleado | Registra `{type, conceptId, description?, amount, paymentMethodId, cashSessionId?}` (BR-032 a BR-034). `INCOME` va a la caja del usuario; `EXPENSE` exige `cashSessionId` y rol administrador (`403` si no). Errores: `409 NO_OPEN_CASH_SESSION`, `CASH_SESSION_NOT_OPEN` o `INSUFFICIENT_CASH`; `400` si el concepto no está activo o no es del tipo, o si el valor no es positivo. |
+| POST | `/api/cash-transactions/{id}/void` | Admin | Anula `{reason}` (BR-035). `409 CASH_TRANSACTION_ALREADY_VOIDED` o `CASH_SESSION_CLOSED`. |
+| GET | `/api/cash-transactions/{id}/receipt` | Admin, quien lo registró o el dueño de la caja | Comprobante (RF-082); `403` para otros. |
 
 ## Reportes y dashboard
 
 | Método | Ruta | Rol | Descripción |
 |---|---|---|---|
-| GET | `/api/dashboard` | Admin | Indicadores de RF-064/RF-065. |
+| GET | `/api/dashboard` | Admin | Indicadores de RF-064/RF-065; `collectedToday` incluye los otros ingresos y se agregan `otherIncomeToday` y `expensesToday` (RF-084). El reporte general (`/summary`) agrega `otherIncomeCollected`, `expensesTotal` y `netCollected`. |
 | GET | `/api/reports/daily?date=` | Admin | Reporte diario. |
 | GET | `/api/reports/summary?from=&to=` | Admin | Reporte semanal/mensual/personalizado (mismo endpoint parametrizado por rango). |
 | GET | `/api/reports/subscriptions?from=&to=&status=AL_DIA,VENCIDA&q=` | Admin | Reporte de mensualidades (RF-078): `portfolio` (cartera con estado y `daysOverdue` a hoy, pagado en el período), `payments` (cobros del período), `collected`, `paymentsCount`, `activeCount`, `countByStatus`, `overdueAmount`. `status` acepta varios separados por coma (vacío = todos); `q` busca por cliente, documento o placa. `400` si un estado es inválido o `from > to`. |
 | GET | `/api/reports/subscriptions/export?…&format=xlsx\|pdf\|csv` | Admin | Mismo reporte, con los mismos filtros, descargado como `reporte-mensualidades_<período>.<ext>`: Excel con hojas Resumen, Cartera y Pagos (números y autofiltro); PDF A4 apaisado; CSV por secciones. |
+| GET | `/api/reports/cash-transactions?from=&to=&type=&conceptId=&status=` | Admin | Reporte de ingresos y gastos (RF-083): `incomeTotal`, `incomeCount`, `expensesTotal`, `expensesCount`, `net`, `voidedCount`, `byConcept` y `transactions`. `type` = `INCOME`/`EXPENSE` y `status` = `ACTIVE`/`VOIDED` (vacíos = todos). `400` si un valor es inválido o `from > to`. |
+| GET | `/api/reports/cash-transactions/export?…&format=xlsx\|pdf\|csv` | Admin | Mismo reporte descargado como `reporte-ingresos-gastos_<período>.<ext>` (hojas Resumen, Conceptos y Movimientos). |
 | GET | `/api/reports/summary/export?from=&to=&format=xlsx\|pdf\|csv` | Admin | Descarga el mismo reporte en Excel, PDF o CSV (RF-063, `decisions/ADR-008-exportacion-reportes.md`). `Content-Disposition: attachment; filename=reporte-parqueadero_<período>.<ext>`. CSV con `;`, UTF-8 con BOM y protección contra inyección de fórmulas. `400` si el formato no es `xlsx`/`pdf`/`csv` o si `from > to`. |
 
 ## Respaldo (RF-073, `decisions/ADR-009-respaldo-base-de-datos.md`)

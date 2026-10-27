@@ -23,6 +23,11 @@ public record ReportData(
         BigDecimal subscriptionCollected,
         long subscriptionPayments,
         /** BR-030: salidas sin cobro de clientes mensuales. */
-        long subscriberExits
+        long subscriberExits,
+        /** RF-083: otros ingresos activos del periodo (incluidos en totalCollected y en los desgloses). */
+        BigDecimal otherIncomeCollected,
+        /** RF-083: gastos de caja activos del periodo y neto = totalCollected - expensesTotal. */
+        BigDecimal expensesTotal,
+        BigDecimal netCollected
 ) {
 }

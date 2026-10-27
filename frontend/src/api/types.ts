@@ -106,6 +106,9 @@ export interface CashSession {
   expectedCash: number | null
   reportedCash: number | null
   difference: number | null
+  /** BR-033: foto al cierre (0 mientras la caja está abierta). */
+  otherIncomeCollected: number
+  expensesTotal: number
 }
 
 export interface CashSessionSummary {
@@ -116,6 +119,10 @@ export interface CashSessionSummary {
   totalCollected: number
   vehiclesServed: number
   expectedCash: number
+  /** BR-033: otros ingresos (ya incluidos en los totales por medio) y gastos; solo expensesCash resta del efectivo esperado. */
+  otherIncomeCollected: number
+  expensesTotal: number
+  expensesCash: number
 }
 
 /** Fase 7 — Administración. */
@@ -186,6 +193,10 @@ export interface Report {
   subscriptionCollected: number
   subscriptionPayments: number
   subscriberExits: number
+  /** RF-083: otros ingresos (incluidos en totalCollected), gastos de caja y neto. */
+  otherIncomeCollected: number
+  expensesTotal: number
+  netCollected: number
 }
 
 export interface RecentMovement {
@@ -200,6 +211,9 @@ export interface DashboardSummary {
   entriesToday: number
   exitsToday: number
   collectedToday: number
+  /** RF-084: otros ingresos de hoy (incluidos en collectedToday) y gastos de caja de hoy. */
+  otherIncomeToday: number
+  expensesToday: number
   openCashSessions: number
   recentMovements: RecentMovement[]
 }
@@ -254,8 +268,70 @@ export interface CashOperation {
   chargedAmount: number
   paymentMethodName: string | null
   tariffName: string | null
-  /** PARKING = cobro de salida; SUBSCRIPTION = pago de mensualidad. */
-  kind: 'PARKING' | 'SUBSCRIPTION'
+  /** PARKING = cobro de salida; SUBSCRIPTION = pago de mensualidad; INCOME / EXPENSE = otro ingreso o gasto (UC-014). */
+  kind: 'PARKING' | 'SUBSCRIPTION' | CashTransactionType
+  /** VOIDED = ingreso o gasto anulado (BR-035). */
+  status: 'ACTIVE' | 'VOIDED'
+  voidReason: string | null
+}
+
+/** UC-014: otros ingresos (cualquier rol) y gastos de caja (solo administrador). */
+export type CashTransactionType = 'INCOME' | 'EXPENSE'
+
+export interface CashConcept {
+  id: string
+  type: CashTransactionType
+  name: string
+  active: boolean
+}
+
+export interface CashTransaction {
+  id: string
+  type: CashTransactionType
+  conceptId: string
+  conceptName: string
+  description: string | null
+  amount: number
+  paymentMethodName: string | null
+  operationNumber: string
+  userName: string | null
+  cashSessionId: string
+  cashierName: string | null
+  createdAt: string
+  status: 'ACTIVE' | 'VOIDED'
+  voidReason: string | null
+}
+
+/** RF-082 (GET /cash-transactions/{id}/receipt). */
+export interface CashTransactionReceipt {
+  parkingName: string | null
+  nit: string | null
+  address: string | null
+  phone: string | null
+  transaction: CashTransaction
+}
+
+/** RF-081: caja abierta de la que el administrador puede registrar un gasto (GET /cash-sessions/open). */
+export interface OpenCashSession {
+  id: string
+  employeeId: string
+  employeeName: string | null
+  openedAt: string
+  expectedCash: number
+}
+
+/** RF-083 (GET /reports/cash-transactions). */
+export interface CashTransactionReport {
+  from: string
+  to: string
+  incomeTotal: number
+  incomeCount: number
+  expensesTotal: number
+  expensesCount: number
+  net: number
+  voidedCount: number
+  byConcept: { type: CashTransactionType; conceptName: string; count: number; total: number }[]
+  transactions: CashTransaction[]
 }
 
 /** RF-057: caja cerrada, candidata a corrección administrativa (GET /cash-sessions). */
@@ -267,6 +343,8 @@ export interface ClosedCashSession {
   closedAt: string
   initialBalance: number
   totalCollected: number | null
+  otherIncomeCollected: number
+  expensesTotal: number
   vehiclesServed: number | null
   expectedCash: number | null
   reportedCash: number | null

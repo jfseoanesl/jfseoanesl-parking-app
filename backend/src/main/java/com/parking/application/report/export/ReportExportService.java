@@ -24,11 +24,17 @@ public class ReportExportService {
     private final ConfigurationRepository configurationRepository;
     private final TimeProvider timeProvider;
     private final com.parking.application.report.SubscriptionReportService subscriptionReportService;
+    private final com.parking.application.report.CashTransactionReportService cashTransactionReportService;
+    private final com.parking.domain.repository.CashConceptRepository cashConceptRepository;
     private final Map<ReportFormat, ReportExporter> exporters = new EnumMap<>(ReportFormat.class);
 
     public ReportExportService(ReportService reportService, ConfigurationRepository configurationRepository,
                                TimeProvider timeProvider, List<ReportExporter> exporters,
-                               com.parking.application.report.SubscriptionReportService subscriptionReportService) {
+                               com.parking.application.report.SubscriptionReportService subscriptionReportService,
+                               com.parking.application.report.CashTransactionReportService cashTransactionReportService,
+                               com.parking.domain.repository.CashConceptRepository cashConceptRepository) {
+        this.cashTransactionReportService = cashTransactionReportService;
+        this.cashConceptRepository = cashConceptRepository;
         this.subscriptionReportService = subscriptionReportService;
         this.reportService = reportService;
         this.configurationRepository = configurationRepository;
@@ -60,6 +66,22 @@ public class ReportExportService {
         var content = SubscriptionReportContent.from(report, filter, timeProvider.zone());
         String period = filter.from().equals(filter.to()) ? filter.from().toString() : filter.from() + "_" + filter.to();
         return new ExportedReport("reporte-mensualidades_" + period + "." + format.extension(), format.contentType(),
+                exporter.exportTables(content, header(generatedBy)));
+    }
+
+    /** RF-083: reporte de ingresos y gastos con los mismos filtros que la pantalla. */
+    public ExportedReport exportCashTransactions(com.parking.application.report.CashTransactionReportService.Filter filter,
+                                                 ReportFormat format, String generatedBy) {
+        ReportExporter exporter = exporters.get(format);
+        if (exporter == null) {
+            throw new IllegalArgumentException("Formato de exportación no disponible: " + format.extension());
+        }
+        var report = cashTransactionReportService.generate(filter);
+        String conceptName = filter.conceptId() == null || filter.conceptId().isBlank() ? null
+                : cashConceptRepository.findById(filter.conceptId()).map(c -> c.name()).orElse(null);
+        var content = CashTransactionReportContent.from(report, filter, conceptName, timeProvider.zone());
+        String period = filter.from().equals(filter.to()) ? filter.from().toString() : filter.from() + "_" + filter.to();
+        return new ExportedReport("reporte-ingresos-gastos_" + period + "." + format.extension(), format.contentType(),
                 exporter.exportTables(content, header(generatedBy)));
     }
 

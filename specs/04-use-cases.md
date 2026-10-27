@@ -344,3 +344,29 @@ Then el dashboard muestra "Ocupados/40" y el porcentaje de ocupación correspond
 ```
 
 **RF relacionados:** RF-010 a RF-015. **BR:** BR-016, BR-018, BR-026.
+
+## UC-014 — Registrar otros ingresos y gastos de caja
+
+**Actores:** Empleado y Administrador (otros ingresos); Administrador (gastos y anulación).
+**Precondición:** usuario autenticado; para un ingreso, con su caja abierta; para un gasto, al menos una caja abierta.
+**Flujo principal (otro ingreso):**
+1. En "Caja", el usuario elige **Registrar otro ingreso**.
+2. Selecciona un concepto activo, escribe una descripción opcional, el valor y el medio de pago.
+3. El sistema lo registra en la caja abierta del usuario con el siguiente número OP- y ofrece el comprobante.
+
+**Flujo alterno (gasto):**
+1. En "Caja", el administrador ve las cajas abiertas con su efectivo disponible y elige **Registrar gasto** en una.
+2. Completa el concepto, la descripción, el valor y el medio de pago.
+3. El sistema valida que un gasto en efectivo no supere el efectivo disponible, lo registra y ofrece el comprobante.
+
+**Flujo alterno (anulación):** el administrador elige **Anular** en una operación de una caja abierta e indica el motivo. El movimiento deja de sumar y queda en auditoría.
+
+**Criterios de aceptación:**
+```
+Given una caja abierta con saldo inicial $10.000 y un otro ingreso en efectivo de $5.000
+When el administrador registra en esa caja un gasto en efectivo de $4.000
+Then el efectivo esperado de la caja es $11.000
+And un gasto en efectivo de $15.001 se rechaza con INSUFFICIENT_CASH
+```
+
+**RF relacionados:** RF-079 a RF-084. **BR:** BR-032 a BR-035.

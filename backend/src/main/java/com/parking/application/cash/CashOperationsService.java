@@ -37,8 +37,14 @@ public class CashOperationsService {
             BigDecimal chargedAmount,
             String paymentMethodName,
             String tariffName,
-            /** PARKING = cobro de salida (comprobante /comprobantes/{paymentId}); SUBSCRIPTION = mensualidad. */
-            String kind
+            /**
+             * PARKING = cobro de salida (comprobante /comprobantes/{paymentId}); SUBSCRIPTION = mensualidad;
+             * INCOME / EXPENSE = otro ingreso o gasto de caja (UC-014, /comprobantes-movimiento/{paymentId}).
+             */
+            String kind,
+            /** ACTIVE, o VOIDED para un ingreso/gasto anulado (BR-035). */
+            String status,
+            String voidReason
     ) {
     }
 
@@ -51,6 +57,8 @@ public class CashOperationsService {
             Instant closedAt,
             BigDecimal initialBalance,
             BigDecimal totalCollected,
+            BigDecimal otherIncomeCollected,
+            BigDecimal expensesTotal,
             Integer vehiclesServed,
             BigDecimal expectedCash,
             BigDecimal reportedCash,
@@ -67,13 +75,16 @@ public class CashOperationsService {
     private final TimeProvider timeProvider;
     private final com.parking.domain.repository.SubscriptionPaymentRepository subscriptionPaymentRepository;
     private final com.parking.domain.repository.SubscriptionRepository subscriptionRepository;
+    private final CashTransactionService cashTransactionService;
 
     public CashOperationsService(CashSessionRepository cashSessionRepository, PaymentRepository paymentRepository,
                                  ParkingSessionRepository parkingSessionRepository,
                                  PaymentMethodRepository paymentMethodRepository, TariffRepository tariffRepository,
                                  UserRepository userRepository, TimeProvider timeProvider,
                                  com.parking.domain.repository.SubscriptionPaymentRepository subscriptionPaymentRepository,
-                                 com.parking.domain.repository.SubscriptionRepository subscriptionRepository) {
+                                 com.parking.domain.repository.SubscriptionRepository subscriptionRepository,
+                                 CashTransactionService cashTransactionService) {
+        this.cashTransactionService = cashTransactionService;
         this.subscriptionPaymentRepository = subscriptionPaymentRepository;
         this.subscriptionRepository = subscriptionRepository;
         this.cashSessionRepository = cashSessionRepository;
@@ -102,7 +113,11 @@ public class CashOperationsService {
                 paymentMethodRepository.findById(p.paymentMethodId()).map(PaymentMethod::name).orElse(null),
                 "Mensualidad - " + subscriptionRepository.findById(p.subscriptionId())
                         .map(com.parking.domain.model.Subscription::customerName).orElse("cliente"),
-                "SUBSCRIPTION")));
+                "SUBSCRIPTION", "ACTIVE", null)));
+        cashTransactionService.byCashSession(cashSessionId).forEach(t -> operations.add(new CashOperation(
+                t.id(), t.operationNumber(), null, t.createdAt(), t.amount(), t.paymentMethodName(),
+                t.description() != null ? t.conceptName() + " - " + t.description() : t.conceptName(),
+                t.type(), t.status(), t.voidReason())));
         operations.sort(Comparator.comparing(CashOperation::paidAt).reversed());
         return operations;
     }
@@ -119,7 +134,8 @@ public class CashOperationsService {
                 .sorted(Comparator.comparing(CashSession::closedAt).reversed())
                 .map(c -> new ClosedCashSession(c.id(), c.employeeId(),
                         userRepository.findById(c.employeeId()).map(User::fullName).orElse(null),
-                        c.openedAt(), c.closedAt(), c.initialBalance(), c.totalCollected(), c.vehiclesServed(),
+                        c.openedAt(), c.closedAt(), c.initialBalance(), c.totalCollected(),
+                        c.otherIncomeCollected(), c.expensesTotal(), c.vehiclesServed(),
                         c.expectedCash(), c.reportedCash(), c.difference()))
                 .toList();
     }
@@ -131,6 +147,6 @@ public class CashOperationsService {
         return new CashOperation(payment.id(), payment.operationNumber(),
                 session != null ? session.plate() : null, payment.paidAt(), payment.chargedAmount(),
                 paymentMethodRepository.findById(payment.paymentMethodId()).map(PaymentMethod::name).orElse(null),
-                tariffName, "PARKING");
+                tariffName, "PARKING", "ACTIVE", null);
     }
 }

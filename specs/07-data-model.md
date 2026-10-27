@@ -26,6 +26,8 @@ erDiagram
     CASH_SESSION ||--o{ PAYMENT : "recibe"
     CASH_SESSION ||--o{ CASH_MOVEMENT : "contiene"
     PAYMENT ||--o| CASH_MOVEMENT : "genera"
+    CASH_SESSION ||--o{ CASH_TRANSACTION : "otros ingresos y gastos"
+    CASH_CONCEPT ||--o{ CASH_TRANSACTION : "clasifica"
     USER ||--o{ CASH_SESSION : "abre"
     USER ||--o{ AUDIT_LOG : "genera"
 
@@ -127,8 +129,32 @@ erDiagram
         decimal expected_cash
         decimal reported_cash
         decimal difference
+        decimal other_income_collected
+        decimal expenses_total
         timestamp created_at
         timestamp updated_at
+    }
+    CASH_CONCEPT {
+        char36 id PK
+        varchar type
+        varchar name
+        boolean active
+    }
+    CASH_TRANSACTION {
+        char36 id PK
+        char36 cash_session_id FK
+        varchar type
+        char36 concept_id FK
+        varchar description
+        decimal amount
+        char36 payment_method_id FK
+        varchar operation_number UK
+        char36 user_id FK
+        datetime created_at
+        varchar status
+        varchar void_reason
+        char36 voided_by FK
+        datetime voided_at
     }
     CASH_MOVEMENT {
         char36 id PK

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Ban, Banknote, CalendarCheck, CircleArrowDown, CircleCheck, Clock, FileSpreadsheet, FileText, Sheet, Scale, TrendingUp } from 'lucide-react'
+import { Ban, Banknote, CalendarCheck, CircleArrowDown, CircleCheck, CircleMinus, Clock, FileSpreadsheet, FileText, HandCoins, Landmark, Sheet, Scale, TrendingUp } from 'lucide-react'
 import { api, ApiError } from '../api/client'
 import type { Report } from '../api/types'
 import { formatCurrency, formatDate, formatElapsed, localIsoDate } from '../lib/format'
@@ -11,10 +11,11 @@ import { useToast } from '../components/Toast'
 import { saveBlob } from '../lib/download'
 import { PRESETS, rangeForPreset, type Preset } from '../lib/reportPeriod'
 import SubscriptionReport from '../components/reports/SubscriptionReport'
+import CashTransactionReport from '../components/reports/CashTransactionReport'
 
 type ExportFormat = 'xlsx' | 'pdf' | 'csv'
 
-type ReportView = 'general' | 'subscriptions'
+type ReportView = 'general' | 'subscriptions' | 'cash'
 
 /** UC-010 (RF-060 a RF-063) y reporte de mensualidades (RF-078). Wireframe: 09-ux-specification.md §5.8. */
 export default function ReportsPage() {
@@ -27,12 +28,13 @@ export default function ReportsPage() {
           options={[
             { value: 'general', label: 'General' },
             { value: 'subscriptions', label: 'Mensualidades' },
+            { value: 'cash', label: 'Ingresos y gastos' },
           ]}
           value={view}
           onChange={setView}
         />
       </div>
-      {view === 'general' ? <GeneralReport /> : <SubscriptionReport />}
+      {view === 'general' ? <GeneralReport /> : view === 'subscriptions' ? <SubscriptionReport /> : <CashTransactionReport />}
     </div>
   )
 }
@@ -148,6 +150,15 @@ function GeneralReport() {
           <>
             <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
               <StatCard label="Total recaudado" value={formatCurrency(report.totalCollected)} icon={<Banknote aria-hidden className="size-5" />} tone="success" />
+              {/* RF-083: otros ingresos incluidos en el total; el neto descuenta los gastos de caja. */}
+              <StatCard label="Otros ingresos" value={formatCurrency(report.otherIncomeCollected)} icon={<HandCoins aria-hidden className="size-5" />} tone="neutral" />
+              <StatCard
+                label="Gastos de caja"
+                value={formatCurrency(report.expensesTotal)}
+                icon={<CircleMinus aria-hidden className="size-5" />}
+                tone={report.expensesTotal > 0 ? 'warning' : 'neutral'}
+              />
+              <StatCard label="Neto (recaudo − gastos)" value={formatCurrency(report.netCollected)} icon={<Landmark aria-hidden className="size-5" />} />
               <StatCard label="Vehículos ingresados" value={report.vehiclesEntered} icon={<CircleArrowDown aria-hidden className="size-5" />} />
               <StatCard label="Vehículos finalizados" value={report.vehiclesFinalized} icon={<CircleCheck aria-hidden className="size-5" />} />
               <StatCard label="Parqueos anulados" value={report.cancelledSessions} icon={<Ban aria-hidden className="size-5" />} tone={report.cancelledSessions > 0 ? 'danger' : 'neutral'} />

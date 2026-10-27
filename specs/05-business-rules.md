@@ -164,6 +164,24 @@ Una sesión vinculada cuya mensualidad está `AL_DIA` o `EN_GRACIA` se finaliza 
 Se cobra en la caja abierta de quien cobra, con un medio de pago, por exactamente el valor pactado (`CHARGED_AMOUNT_MISMATCH` si no). Cubre desde el día siguiente a `paidUntil` (u hoy, si nunca pagó o ya venció) hasta la primera fecha con el día de corte posterior al inicio; no se prorratea. Usa el mismo consecutivo `OP-` que los cobros de salida, suma en el arqueo y en los reportes y deja un movimiento de caja.
 *Parametrizable:* no. *Origen:* solicitud del usuario.
 
+## Otros ingresos y gastos de caja (UC-014, ADR-012)
+
+**BR-032 — Quién registra y en qué caja**
+Un otro ingreso lo registra cualquier rol, siempre en **su** caja abierta (`NO_OPEN_CASH_SESSION` si no tiene). Un gasto solo lo registra el administrador (`403` para otro rol), en una caja **abierta** que elige: la suya o la de un empleado (`CASH_SESSION_NOT_OPEN` si no lo está). El concepto debe estar activo y ser del mismo tipo; el valor, mayor que cero.
+*Parametrizable:* el catálogo de conceptos. *Origen:* solicitud del usuario.
+
+**BR-033 — Efecto en el arqueo**
+Los otros ingresos suman en el total de su medio de pago (efectivo, electrónico u otro) y en el total recaudado. Los gastos se muestran aparte y solo los de efectivo salen del cajón: `efectivo esperado = saldo inicial + efectivo cobrado (parqueo, mensualidades y otros ingresos) − gastos en efectivo`. Un gasto en efectivo no puede superar el efectivo esperado del momento (`INSUFFICIENT_CASH`). El cierre guarda los otros ingresos y los gastos de la caja.
+*Parametrizable:* no. *Origen:* solicitud del usuario.
+
+**BR-034 — Consecutivo y comprobante**
+Cada otro ingreso o gasto recibe el siguiente número `OP-`, compartido con los cobros de salida y de mensualidades, y tiene comprobante imprimible.
+*Parametrizable:* no. *Origen:* solicitud del usuario.
+
+**BR-035 — Anulación**
+Solo el administrador, con motivo obligatorio, y solo mientras la caja del movimiento sigue abierta (`CASH_SESSION_CLOSED` si ya se cerró), para no alterar un cierre guardado. El movimiento anulado se conserva con estado `VOIDED`, deja de sumar en la caja, el Dashboard y los reportes, y queda en auditoría (`CASH_TRANSACTION_VOIDED`).
+*Parametrizable:* no. *Origen:* solicitud del usuario.
+
 ## Zona horaria y tiempo
 
 **BR-026 — Servicio de tiempo centralizado**

@@ -64,6 +64,12 @@ public class CashSessionEntity {
     @Column(precision = 12, scale = 2)
     private BigDecimal difference;
 
+    @Column(name = "other_income_collected", nullable = false, precision = 12, scale = 2)
+    private BigDecimal otherIncomeCollected;
+
+    @Column(name = "expenses_total", nullable = false, precision = 12, scale = 2)
+    private BigDecimal expensesTotal;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 

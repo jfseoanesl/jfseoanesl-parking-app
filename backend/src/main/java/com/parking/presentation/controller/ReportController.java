@@ -30,9 +30,12 @@ public class ReportController {
     private final ReportService reportService;
     private final ReportExportService reportExportService;
     private final com.parking.application.report.SubscriptionReportService subscriptionReportService;
+    private final com.parking.application.report.CashTransactionReportService cashTransactionReportService;
 
     public ReportController(ReportService reportService, ReportExportService reportExportService,
-                            com.parking.application.report.SubscriptionReportService subscriptionReportService) {
+                            com.parking.application.report.SubscriptionReportService subscriptionReportService,
+                            com.parking.application.report.CashTransactionReportService cashTransactionReportService) {
+        this.cashTransactionReportService = cashTransactionReportService;
         this.subscriptionReportService = subscriptionReportService;
         this.reportService = reportService;
         this.reportExportService = reportExportService;
@@ -93,6 +96,40 @@ public class ReportController {
                 .orElseThrow(() -> new IllegalArgumentException("Formato no soportado: use xlsx, pdf o csv"));
         ExportedReport report = reportExportService.exportSubscriptions(filter(from, to, status, q), reportFormat,
                 principal.fullName());
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(report.contentType()))
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
+                        .filename(report.filename(), StandardCharsets.UTF_8).build().toString())
+                .body(report.content());
+    }
+
+    // --- RF-083: reporte de ingresos y gastos ------------------------------------------------
+
+    @GetMapping("/cash-transactions")
+    public com.parking.application.report.CashTransactionReportService.Report cashTransactions(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(required = false) com.parking.domain.model.CashTransactionType type,
+            @RequestParam(required = false) String conceptId,
+            @RequestParam(required = false) com.parking.domain.model.CashTransactionStatus status) {
+        return cashTransactionReportService.generate(
+                new com.parking.application.report.CashTransactionReportService.Filter(from, to, type, conceptId, status));
+    }
+
+    @GetMapping("/cash-transactions/export")
+    public ResponseEntity<byte[]> exportCashTransactions(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(required = false) com.parking.domain.model.CashTransactionType type,
+            @RequestParam(required = false) String conceptId,
+            @RequestParam(required = false) com.parking.domain.model.CashTransactionStatus status,
+            @RequestParam String format,
+            @AuthenticationPrincipal ParkingUserPrincipal principal) {
+        ReportFormat reportFormat = ReportFormat.fromExtension(format)
+                .orElseThrow(() -> new IllegalArgumentException("Formato no soportado: use xlsx, pdf o csv"));
+        ExportedReport report = reportExportService.exportCashTransactions(
+                new com.parking.application.report.CashTransactionReportService.Filter(from, to, type, conceptId, status),
+                reportFormat, principal.fullName());
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(report.contentType()))
                 .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()

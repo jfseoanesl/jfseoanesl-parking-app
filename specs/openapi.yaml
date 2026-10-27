@@ -357,6 +357,17 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
 
   /cash-sessions/open:
+    get:
+      summary: Cajas abiertas para registrar un gasto (RF-081, solo administrador)
+      responses:
+        '200':
+          description: Cajas abiertas con su efectivo esperado actual
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/OpenCashSession' }
+        '403': { $ref: '#/components/responses/AdminOnly' }
     post:
       summary: Abrir caja
       requestBody:
@@ -783,6 +794,139 @@ paths:
         '200': { description: OK }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  # --- Otros ingresos y gastos de caja (UC-014, ADR-012) ---
+
+  /cash-concepts:
+    get:
+      summary: Catálogo de conceptos de otros ingresos y gastos (RF-079)
+      parameters:
+        - { name: type, in: query, required: false, schema: { type: string, enum: [INCOME, EXPENSE] } }
+        - { name: active, in: query, required: false, schema: { type: boolean } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/CashConcept' }
+    post:
+      summary: Crear concepto (solo administrador)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [type, name]
+              properties:
+                type: { type: string, enum: [INCOME, EXPENSE] }
+                name: { type: string, maxLength: 100 }
+      responses:
+        '201':
+          description: Creado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CashConcept' }
+        '403': { $ref: '#/components/responses/AdminOnly' }
+        '409': { description: CASH_CONCEPT_DUPLICATED }
+
+  /cash-concepts/{id}:
+    put:
+      summary: Renombrar concepto (solo administrador)
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string, maxLength: 100 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CashConcept' }
+
+  /cash-concepts/{id}/status:
+    patch:
+      summary: Activar o desactivar concepto (solo administrador)
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ActiveStatusRequest' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CashConcept' }
+
+  /cash-transactions:
+    post:
+      summary: Registrar otro ingreso (cualquier rol) o gasto de caja (solo administrador)
+      description: |
+        BR-032 a BR-034. INCOME va a la caja abierta del usuario; EXPENSE exige cashSessionId de una caja
+        abierta y rol administrador (403 si no). Un gasto en efectivo no puede superar el efectivo esperado.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CashTransactionInput' }
+      responses:
+        '201':
+          description: Registrado con número OP-
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CashTransaction' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '403': { description: Un gasto lo registra solo el administrador }
+        '409': { description: 'NO_OPEN_CASH_SESSION, CASH_SESSION_NOT_OPEN o INSUFFICIENT_CASH' }
+
+  /cash-transactions/{id}/void:
+    post:
+      summary: Anular otro ingreso o gasto (BR-035, solo administrador)
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string, maxLength: 255 }
+      responses:
+        '200':
+          description: Anulado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CashTransaction' }
+        '403': { $ref: '#/components/responses/AdminOnly' }
+        '409': { description: 'CASH_TRANSACTION_ALREADY_VOIDED o CASH_SESSION_CLOSED' }
+
+  /cash-transactions/{id}/receipt:
+    get:
+      summary: Comprobante de otro ingreso o gasto (RF-082)
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CashTransactionReceipt' }
+        '403': { description: Solo el administrador, quien lo registró o el dueño de la caja }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /parking-sessions/{id}/exit-subscription:
     post:
       summary: Salida sin cobro de un cliente mensual al día o en gracia (BR-030)
@@ -1011,6 +1155,47 @@ paths:
       responses:
         '200':
           description: Archivo reporte-mensualidades_<período>.<ext>
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema: { type: string, format: binary }
+            application/pdf:
+              schema: { type: string, format: binary }
+            text/csv:
+              schema: { type: string, format: binary }
+        '400': { description: Formato o filtros inválidos }
+        '403': { $ref: '#/components/responses/AdminOnly' }
+
+  /reports/cash-transactions:
+    get:
+      summary: Reporte de otros ingresos y gastos de caja (RF-083)
+      parameters:
+        - $ref: '#/components/parameters/ReportFrom'
+        - $ref: '#/components/parameters/ReportTo'
+        - { name: type, in: query, required: false, schema: { type: string, enum: [INCOME, EXPENSE] } }
+        - { name: conceptId, in: query, required: false, schema: { type: string, format: uuid } }
+        - { name: status, in: query, required: false, schema: { type: string, enum: [ACTIVE, VOIDED] } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CashTransactionReport' }
+        '400': { description: Filtros inválidos o from > to }
+        '403': { $ref: '#/components/responses/AdminOnly' }
+
+  /reports/cash-transactions/export:
+    get:
+      summary: Exportar el reporte de ingresos y gastos (Excel, PDF o CSV)
+      parameters:
+        - $ref: '#/components/parameters/ReportFrom'
+        - $ref: '#/components/parameters/ReportTo'
+        - { name: type, in: query, required: false, schema: { type: string, enum: [INCOME, EXPENSE] } }
+        - { name: conceptId, in: query, required: false, schema: { type: string, format: uuid } }
+        - { name: status, in: query, required: false, schema: { type: string, enum: [ACTIVE, VOIDED] } }
+        - { name: format, in: query, required: true, schema: { type: string, enum: [xlsx, pdf, csv] } }
+      responses:
+        '200':
+          description: Archivo reporte-ingresos-gastos_<período>.<ext>
           content:
             application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
               schema: { type: string, format: binary }
@@ -1277,6 +1462,8 @@ components:
         expectedCash: { type: number, nullable: true }
         reportedCash: { type: number, nullable: true }
         difference: { type: number, nullable: true }
+        otherIncomeCollected: { type: number, description: Otros ingresos activos al cierre (0 si está abierta, BR-033). }
+        expensesTotal: { type: number, description: Gastos activos al cierre (0 si está abierta, BR-033). }
 
     CashSessionSummary:
       type: object
@@ -1287,7 +1474,10 @@ components:
         otherCollected: { type: number }
         totalCollected: { type: number }
         vehiclesServed: { type: integer }
-        expectedCash: { type: number }
+        expectedCash: { type: number, description: 'Saldo inicial + efectivo cobrado − gastos en efectivo (BR-033).' }
+        otherIncomeCollected: { type: number, description: Otros ingresos activos (ya incluidos en los totales por medio de pago). }
+        expensesTotal: { type: number }
+        expensesCash: { type: number, description: Parte de los gastos pagada en efectivo. }
 
     Report:
       type: object
@@ -1321,6 +1511,9 @@ components:
           additionalProperties: { type: number }
         cancelledSessions: { type: integer, format: int64, description: Sesiones anuladas en el período (UC-011). }
         cashDifferencesSum: { type: number, description: Suma de diferencias de arqueo de las cajas cerradas en el período (negativo = faltante). }
+        otherIncomeCollected: { type: number, description: Otros ingresos activos del período (incluidos en totalCollected, RF-083). }
+        expensesTotal: { type: number, description: Gastos de caja activos del período. }
+        netCollected: { type: number, description: 'totalCollected − expensesTotal.' }
 
     Dashboard:
       type: object
@@ -1329,7 +1522,9 @@ components:
         maxCapacity: { type: integer, nullable: true, description: Capacidad configurada; null si no se configuró (BR-016). }
         entriesToday: { type: integer, format: int64 }
         exitsToday: { type: integer, format: int64 }
-        collectedToday: { type: number }
+        collectedToday: { type: number, description: Incluye mensualidades y otros ingresos del día. }
+        otherIncomeToday: { type: number, description: RF-084. }
+        expensesToday: { type: number, description: RF-084. }
         openCashSessions: { type: integer, format: int64 }
         recentMovements:
           type: array
@@ -1539,7 +1734,89 @@ components:
         paidAt: { type: string, format: date-time }
         chargedAmount: { type: number }
         paymentMethodName: { type: string, nullable: true }
-        tariffName: { type: string, nullable: true }
+        tariffName: { type: string, nullable: true, description: 'Tarifa, mensualidad, o "concepto - descripción" para otros ingresos y gastos.' }
+        kind: { type: string, enum: [PARKING, SUBSCRIPTION, INCOME, EXPENSE] }
+        status: { type: string, enum: [ACTIVE, VOIDED] }
+        voidReason: { type: string, nullable: true }
+
+    CashConcept:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        type: { type: string, enum: [INCOME, EXPENSE] }
+        name: { type: string }
+        active: { type: boolean }
+
+    CashTransactionInput:
+      type: object
+      required: [type, conceptId, amount, paymentMethodId]
+      properties:
+        type: { type: string, enum: [INCOME, EXPENSE] }
+        conceptId: { type: string, format: uuid }
+        description: { type: string, nullable: true, maxLength: 255 }
+        amount: { type: number, minimum: 0, exclusiveMinimum: true }
+        paymentMethodId: { type: string, format: uuid }
+        cashSessionId: { type: string, format: uuid, nullable: true, description: Obligatorio para EXPENSE. }
+
+    CashTransaction:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        type: { type: string, enum: [INCOME, EXPENSE] }
+        conceptId: { type: string, format: uuid }
+        conceptName: { type: string }
+        description: { type: string, nullable: true }
+        amount: { type: number }
+        paymentMethodName: { type: string, nullable: true }
+        operationNumber: { type: string, example: OP-000123 }
+        userName: { type: string, nullable: true }
+        cashSessionId: { type: string, format: uuid }
+        cashierName: { type: string, nullable: true, description: Dueño de la caja. }
+        createdAt: { type: string, format: date-time }
+        status: { type: string, enum: [ACTIVE, VOIDED] }
+        voidReason: { type: string, nullable: true }
+
+    CashTransactionReceipt:
+      type: object
+      properties:
+        parkingName: { type: string, nullable: true }
+        nit: { type: string, nullable: true }
+        address: { type: string, nullable: true }
+        phone: { type: string, nullable: true }
+        transaction: { $ref: '#/components/schemas/CashTransaction' }
+
+    OpenCashSession:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        employeeId: { type: string, format: uuid }
+        employeeName: { type: string, nullable: true }
+        openedAt: { type: string, format: date-time }
+        expectedCash: { type: number }
+
+    CashTransactionReport:
+      type: object
+      properties:
+        from: { type: string, format: date }
+        to: { type: string, format: date }
+        incomeTotal: { type: number }
+        incomeCount: { type: integer, format: int64 }
+        expensesTotal: { type: number }
+        expensesCount: { type: integer, format: int64 }
+        net: { type: number }
+        voidedCount: { type: integer, format: int64 }
+        byConcept:
+          type: array
+          items:
+            type: object
+            properties:
+              type: { type: string, enum: [INCOME, EXPENSE] }
+              conceptName: { type: string }
+              count: { type: integer, format: int64 }
+              total: { type: number }
+        transactions:
+          type: array
+          items: { $ref: '#/components/schemas/CashTransaction' }
 
     ClosedCashSession:
       type: object
@@ -1551,6 +1828,8 @@ components:
         closedAt: { type: string, format: date-time }
         initialBalance: { type: number }
         totalCollected: { type: number, nullable: true }
+        otherIncomeCollected: { type: number }
+        expensesTotal: { type: number }
         vehiclesServed: { type: integer, nullable: true }
         expectedCash: { type: number, nullable: true }
         reportedCash: { type: number, nullable: true }

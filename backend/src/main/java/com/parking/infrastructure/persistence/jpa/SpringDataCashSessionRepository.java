@@ -14,4 +14,6 @@ public interface SpringDataCashSessionRepository extends JpaRepository<CashSessi
     List<CashSessionEntity> findByStatusAndClosedAtBetween(String status, Instant from, Instant to);
 
     long countByStatus(String status);
+
+    List<CashSessionEntity> findByStatus(String status);
 }

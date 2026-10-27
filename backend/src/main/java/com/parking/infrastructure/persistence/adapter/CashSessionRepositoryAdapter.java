@@ -7,6 +7,7 @@ import com.parking.infrastructure.persistence.entity.CashSessionEntity;
 import com.parking.infrastructure.persistence.jpa.SpringDataCashSessionRepository;
 import org.springframework.stereotype.Component;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -44,6 +45,12 @@ public class CashSessionRepositoryAdapter implements CashSessionRepository {
     }
 
     @Override
+    public List<CashSession> findOpen() {
+        return springDataRepository.findByStatus(CashSessionStatus.OPEN.name()).stream()
+                .map(CashSessionRepositoryAdapter::toDomain).toList();
+    }
+
+    @Override
     public long countOpen() {
         return springDataRepository.countByStatus(CashSessionStatus.OPEN.name());
     }
@@ -52,12 +59,15 @@ public class CashSessionRepositoryAdapter implements CashSessionRepository {
         return new CashSession(e.getId(), e.getEmployeeId(), CashSessionStatus.valueOf(e.getStatus()),
                 e.getOpenedAt(), e.getInitialBalance(), e.getClosedAt(), e.getCashCollected(),
                 e.getElectronicCollected(), e.getOtherCollected(), e.getTotalCollected(), e.getVehiclesServed(),
-                e.getExpectedCash(), e.getReportedCash(), e.getDifference(), e.getCreatedAt(), e.getUpdatedAt());
+                e.getExpectedCash(), e.getReportedCash(), e.getDifference(), e.getOtherIncomeCollected(),
+                e.getExpensesTotal(), e.getCreatedAt(), e.getUpdatedAt());
     }
 
     static CashSessionEntity toEntity(CashSession s) {
         return new CashSessionEntity(s.id(), s.employeeId(), s.status().name(), s.openedAt(), s.initialBalance(),
                 s.closedAt(), s.cashCollected(), s.electronicCollected(), s.otherCollected(), s.totalCollected(),
-                s.vehiclesServed(), s.expectedCash(), s.reportedCash(), s.difference(), s.createdAt(), s.updatedAt());
+                s.vehiclesServed(), s.expectedCash(), s.reportedCash(), s.difference(),
+                s.otherIncomeCollected() != null ? s.otherIncomeCollected() : BigDecimal.ZERO,
+                s.expensesTotal() != null ? s.expensesTotal() : BigDecimal.ZERO, s.createdAt(), s.updatedAt());
     }
 }

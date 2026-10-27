@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import {
+  ArrowLeftRight,
   ChartColumn,
   DatabaseBackup,
   CalendarCheck,
@@ -27,6 +28,7 @@ const ICONS: Record<string, (className: string) => ReactNode> = {
   Parqueados: (c) => <SquareParking aria-hidden className={c} />,
   Cobros: (c) => <ReceiptText aria-hidden className={c} />,
   Caja: (c) => <Wallet aria-hidden className={c} />,
+  'Ingresos y gastos': (c) => <ArrowLeftRight aria-hidden className={c} />,
   Mensualidades: (c) => <CalendarCheck aria-hidden className={c} />,
   Historial: (c) => <History aria-hidden className={c} />,
   Reportes: (c) => <ChartColumn aria-hidden className={c} />,

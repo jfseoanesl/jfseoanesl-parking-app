@@ -80,4 +80,30 @@ test.describe('Ingresos y gastos de caja', () => {
     await expect(page.getByRole('heading', { name: 'Ingresos y gastos de caja' })).toBeVisible()
     await expect(page.getByText(incomeDescription)).toBeVisible()
   })
+
+  test('la opcion del menu lateral permite registrar y ver otros ingresos', async ({ page }) => {
+    const description = `Menu E2E ${Date.now().toString().slice(-5)}`
+    await login(page)
+    await ensureCashSessionOpen(page)
+
+    await page.getByRole('navigation').getByRole('link', { name: 'Ingresos y gastos' }).click()
+    await expect(page).toHaveURL('/ingresos-gastos')
+    await expect(page.getByRole('heading', { name: 'Ingresos y gastos', exact: true })).toBeVisible()
+
+    await page.getByRole('button', { name: 'Registrar otro ingreso' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Registrar otro ingreso' })
+    await dialog.getByLabel('Descripción').fill(description)
+    await dialog.getByLabel('Valor').fill('3500')
+    await dialog.getByRole('button', { name: 'Registrar ingreso' }).click()
+    const done = page.getByRole('dialog', { name: 'Ingreso registrado' })
+    await expect(done).toBeVisible()
+    await done.getByRole('button', { name: 'Listo', exact: true }).click()
+
+    const mine = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Movimientos de mi caja', exact: true }) })
+    await expect(mine.getByText(description)).toBeVisible()
+    const today = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Movimientos de hoy', exact: true }) })
+    await expect(today.getByText(description)).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Gastos de caja', exact: true })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Conceptos de caja', exact: true })).toBeVisible()
+  })
 })

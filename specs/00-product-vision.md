@@ -390,3 +390,5 @@ transferencia real de la instalación SQLite a una MySQL temporal, con conteos y
 - Reportes: pestaña "Ingresos y gastos" (filtros, totales por concepto, detalle y exportación) y, en el general, otros ingresos, gastos y neto. Dashboard: otros ingresos y gastos del día.
 - Verificado: backend 119/119 en SQLite y MySQL, frontend 30/30 y E2E 25/25.
 
+**Menú "Ingresos y gastos" (2026-10-27):** opción nueva en el menú lateral de ambos roles (en móvil, en "Más") con su propia pantalla: registrar otros ingresos y ver los de la caja propia; el administrador además registra gastos, ve y anula los movimientos de hoy de todas las cajas y administra los conceptos. Los botones de Caja se mantienen. Verificado: frontend 30/30 y E2E 27/27.
+

@@ -392,3 +392,5 @@ transferencia real de la instalación SQLite a una MySQL temporal, con conteos y
 
 **Menú "Ingresos y gastos" (2026-10-27):** opción nueva en el menú lateral de ambos roles (en móvil, en "Más") con su propia pantalla: registrar otros ingresos y ver los de la caja propia; el administrador además registra gastos, ve y anula los movimientos de hoy de todas las cajas y administra los conceptos. Los botones de Caja se mantienen. Verificado: frontend 30/30 y E2E 27/27.
 
+**Formato de placa por tipo de vehículo (2026-11-05):** BR-036 y enmienda de BR-002. La placa debe tener el formato oficial de Colombia de su tipo: automóvil `ABC123`, motocicleta `ABC12D` o la antigua `ABC12`. Si no corresponde, el ingreso y las placas de mensualidades se rechazan con `PLATE_FORMAT_MISMATCH`; la pantalla avisa en vivo, ofrece cambiar al tipo correcto y preselecciona el tipo según la placa. Los tipos creados por el administrador conservan la validación laxa. Verificado: backend 125/125 en SQLite y MySQL, frontend 34/34 y E2E 28/28.
+

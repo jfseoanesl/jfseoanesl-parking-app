@@ -284,8 +284,9 @@ public class SubscriptionService {
             if (!seen.add(v.plate())) {
                 throw new IllegalArgumentException("La placa " + v.plate() + " está repetida");
             }
-            vehicleTypeRepository.findById(v.vehicleTypeId()).filter(VehicleType::active)
+            VehicleType type = vehicleTypeRepository.findById(v.vehicleTypeId()).filter(VehicleType::active)
                     .orElseThrow(() -> new NotFoundException("Tipo de vehículo no encontrado o inactivo"));
+            com.parking.domain.model.PlateFormat.validate(v.plate(), type.code()); // BR-036
             subscriptionRepository.findVehicleByPlate(v.plate())
                     .filter(existing -> !existing.subscriptionId().equals(s.id()))
                     .ifPresent(existing -> {

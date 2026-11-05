@@ -13,6 +13,15 @@ No puede existir más de una sesión de parqueo en estado `EN_PARQUEADERO` para 
 **BR-002 — Normalización de placa**
 Toda placa se normaliza antes de guardar: se eliminan espacios redundantes y se convierte a mayúsculas. Se valida contra un formato razonable (alfanumérico, longitud típica de placas colombianas 6-7 caracteres); el formato exacto es configurable para tolerar variantes (motos, remolques, placas especiales).
 *Parametrizable:* el patrón de validación, sí. *Origen:* prompt maestro §5.
+*Enmienda (2026-11-05):* la validación laxa (3 a 10 caracteres alfanuméricos) se mantiene para todos los tipos; para automóvil y motocicleta se agrega el formato oficial de BR-036.
+
+**BR-036 — Formato de placa según el tipo de vehículo (Colombia)**
+La placa normalizada debe tener el formato del Ministerio de Transporte para el tipo elegido:
+- **Automóvil** (código `CAR`): tres letras y tres números, `ABC123`.
+- **Motocicleta** (código `MOTORCYCLE`): tres letras, dos números y una letra, `ABC12D`, o la serie antigua de tres letras y dos números, `ABC12`.
+
+Si no corresponde, el ingreso (RF-023) o la placa autorizada de la mensualidad (RF-074) se rechazan con `PLATE_FORMAT_MISMATCH`. El mensaje indica si la placa tiene el formato del otro tipo ("ABC12D tiene formato de motocicleta, no de automóvil") o el formato esperado. La pantalla ofrece cambiar al tipo correcto y, si el usuario aún no eligió tipo, lo selecciona según la placa. Los tipos creados por el administrador con otro código no tienen formato oficial y solo aplican BR-002. Los datos existentes no se modifican.
+*Fuente:* Ministerio de Transporte (placa de motocicleta de tres letras y dos dígitos, con letra de serie en las series actuales; placa de servicio particular/público de tres letras y tres números). *Parametrizable:* no. *Origen:* solicitud del usuario (2026-11-05): bloquear y sugerir; aceptar `ABC12D` y `ABC12` para motos; aplicar en el ingreso y en las mensualidades.
 
 **BR-003 — RBAC estricto**
 Un usuario con rol Empleado nunca puede ejecutar operaciones reservadas a Administrador (gestión de usuarios, tarifas, configuración, auditoría, anulaciones), ni siquiera invocando la API directamente. La validación de permisos ocurre siempre en el servidor; el cliente solo oculta opciones como ayuda de UX.

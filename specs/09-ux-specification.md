@@ -228,6 +228,8 @@ Desktop: mismo formulario centrado en tarjeta de 400px sobre fondo neutro.
 ```
 Tras confirmar: `Toast` de éxito + regreso automático a esta misma pantalla lista para el siguiente ingreso (minimiza pasos para el flujo repetitivo, RNF-001). Si la configuración tiene activado *Imprimir comprobante al registrar el ingreso* (RF-015/RF-072), bajo el formulario queda un aviso con la placa, el número `ING-…` y el botón **Imprimir comprobante**, que abre `/comprobantes-ingreso/{id}` (vista imprimible con Volver/Imprimir); el aviso se reemplaza con el siguiente ingreso. Igualmente, en Cobro/salida el botón *Ver comprobante para imprimir* solo aparece si *Imprimir comprobante al registrar la salida* está activado.
 
+**Formato de placa (BR-036):** al escribir la placa, si el usuario aún no eligió el tipo, se selecciona el que corresponde al formato (`ABC123` automóvil, `ABC12D`/`ABC12` motocicleta). Desde 5 caracteres, si no corresponde al tipo elegido, aparece un aviso (`role="alert"`) con el mensaje y el botón **Cambiar a …**, y **Confirmar ingreso** queda deshabilitado; si el formato no se reconoce, el aviso muestra el formato esperado. En el formulario de Mensualidades cada placa autorizada muestra el mismo aviso con el enlace para cambiar el tipo, y **Crear/Guardar** queda deshabilitado.
+
 ### 5.4 Vehículos parqueados
 
 ```

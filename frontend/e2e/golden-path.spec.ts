@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { ADMIN_PASSWORD, ADMIN_USERNAME } from './credentials'
+import { carPlate } from './plates'
 
 /**
  * Fase 10 — QA: E2E del flujo dorado (UC-002 a UC-007, UC-010). Corre contra un backend real
@@ -32,7 +33,7 @@ async function ensureCashSessionOpen(page: import('@playwright/test').Page) {
 
 test.describe('Flujo dorado: ingreso -> cobro -> dashboard/reportes', () => {
   test('un vehiculo ingresado y cobrado se refleja en Parqueados, Dashboard y Reportes', async ({ page }) => {
-    const plate = `E2E${Date.now().toString().slice(-6)}`
+    const plate = carPlate()
 
     await login(page)
     await ensureCashSessionOpen(page)

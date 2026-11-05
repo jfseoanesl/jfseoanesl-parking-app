@@ -97,7 +97,7 @@ class SubscriptionIntegrationTest {
     @Test
     void gestionSoloAdministradorYPlacaUnicaEntreMensualidades() throws Exception {
         MockHttpSession admin = loginAs("admin", "admin123");
-        String id = createSubscription(admin, "Cliente Uno", 90000, "MEN101", "MEN102");
+        String id = createSubscription(admin, "Cliente Uno", 90000, "MEN101", "MEN10B");
 
         mockMvc.perform(get("/api/subscriptions/" + id).session(admin))
                 .andExpect(status().isOk())
@@ -115,6 +115,12 @@ class SubscriptionIntegrationTest {
                         .formatted(CAR));
         assertThat(badDay.getResponse().getStatus()).isEqualTo(400);
 
+        // BR-036: la placa autorizada debe tener el formato de su tipo de vehiculo.
+        MvcResult badFormat = postJson(admin, "/api/subscriptions",
+                "{\"customerName\":\"Otro\",\"monthlyFee\":1000,\"cutOffDay\":5,\"vehicles\":[{\"plate\":\"MEN19F\",\"vehicleTypeId\":\"%s\"}]}"
+                        .formatted(CAR));
+        assertThat(json(badFormat)).contains("PLATE_FORMAT_MISMATCH", "motocicleta");
+
         MockHttpSession employee = loginAs("empleado", "empleado123");
         mockMvc.perform(get("/api/subscriptions").session(employee)).andExpect(status().isOk());
         assertThat(postJson(employee, "/api/subscriptions", "{}").getResponse().getStatus()).isEqualTo(403);
@@ -126,7 +132,7 @@ class SubscriptionIntegrationTest {
     @Test
     void pagoEnCajaIngresoReconocidoYSalidaSinCobro() throws Exception {
         MockHttpSession admin = loginAs("admin", "admin123");
-        String id = createSubscription(admin, "Cliente Dos", 120000, "MEN201", "MEN202");
+        String id = createSubscription(admin, "Cliente Dos", 120000, "MEN201", "MEN20B");
         MockHttpSession cashier = cashier(admin);
         String cashId = JsonPath.read(json(mockMvc.perform(get("/api/cash-sessions/current").session(cashier)).andReturn()), "$.id");
         Number cashBefore = JsonPath.read(json(mockMvc.perform(get("/api/cash-sessions/" + cashId + "/summary")
@@ -176,7 +182,7 @@ class SubscriptionIntegrationTest {
         assertThat((String) JsonPath.read(entry, "$.notice")).contains("Cliente Dos");
 
         // Otro vehículo de la misma mensualidad mientras el primero está dentro: cliente normal con aviso.
-        String second = enter(admin, "MEN202", MOTO);
+        String second = enter(admin, "MEN20B", MOTO);
         assertThat((Object) JsonPath.read(second, "$.subscriptionId")).isNull();
         assertThat((String) JsonPath.read(second, "$.notice")).contains("MEN201");
 

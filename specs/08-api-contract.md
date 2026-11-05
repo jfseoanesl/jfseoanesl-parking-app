@@ -17,7 +17,7 @@ Convenciones: autenticación por cookie de sesión (`10-security-specification.m
 | Método | Ruta | Rol | Descripción |
 |---|---|---|---|
 | GET | `/api/parking-sessions/active` | Admin, Empleado | Lista sesiones `EN_PARQUEADERO` (soporta `?plate=` para búsqueda). |
-| POST | `/api/parking-sessions` | Empleado | Registra ingreso (RF-023). `409` si ya existe sesión activa para la placa (BR-001). |
+| POST | `/api/parking-sessions` | Empleado | Registra ingreso (RF-023). `409` si ya existe sesión activa para la placa (BR-001) o `409 PLATE_FORMAT_MISMATCH` si la placa no tiene el formato de su tipo de vehículo (BR-036). |
 | GET | `/api/parking-sessions/{id}` | Admin, Empleado | Detalle de una sesión (incluye `entryNumber`). |
 | GET | `/api/parking-sessions/{id}/entry-receipt` | Admin, Empleado | Datos del comprobante de ingreso (RF-072): parqueadero, `entryNumber`, placa, tipo, fecha/hora, empleado, observaciones, estado. Cualquier estado (reimpresión). `404` si no existe. |
 | GET | `/api/parking-sessions` | Admin | Historial con filtros `?from=&to=&plate=&status=&employeeId=` (RF-058). `from`/`to` obligatorios (fecha de ingreso); responde `{items, truncated}` con máximo 500 resultados. |
@@ -98,7 +98,7 @@ El resumen (`/summary`) y la caja cerrada incluyen `otherIncomeCollected` y `exp
 |---|---|---|---|
 | GET | `/api/subscriptions` | Admin, Empleado | Lista con `status` (BR-028), `paidUntil`, placas y `vehicleInsidePlate`. |
 | GET | `/api/subscriptions/{id}` | Admin, Empleado | Detalle. |
-| POST | `/api/subscriptions` | Admin | Crea (`customerName`, `documentId`, `phone`, `monthlyFee`, `cutOffDay` 1–28, `notes`, `vehicles[{plate, vehicleTypeId}]`). `409 PLATE_IN_OTHER_SUBSCRIPTION`. |
+| POST | `/api/subscriptions` | Admin | Crea (`customerName`, `documentId`, `phone`, `monthlyFee`, `cutOffDay` 1–28, `notes`, `vehicles[{plate, vehicleTypeId}]`). `409 PLATE_IN_OTHER_SUBSCRIPTION` o `PLATE_FORMAT_MISMATCH` (BR-036). |
 | PUT | `/api/subscriptions/{id}` | Admin | Edita (reemplaza las placas). |
 | PATCH | `/api/subscriptions/{id}/status` | Admin | `{active}`. |
 | POST | `/api/subscriptions/{id}/payments` | Admin, Empleado | Cobro mensual en la caja abierta: `{paymentMethodId, amount}`; `409 NO_OPEN_CASH_SESSION`, `CHARGED_AMOUNT_MISMATCH`, `SUBSCRIPTION_INACTIVE`. Responde el pago con `periodFrom/periodTo` y `operationNumber`. |

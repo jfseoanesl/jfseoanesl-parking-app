@@ -320,6 +320,22 @@ class ParkingOperationsIntegrationTest {
     }
 
     @Test
+    void placaConFormatoDeOtroTipoEsRechazadaAlIngresar() throws Exception {
+        MockHttpSession session = loginAs("admin", "admin123");
+        // BR-036: ABC12D es placa de motocicleta; como automovil se rechaza sin crear la sesion.
+        mockMvc.perform(post("/api/parking-sessions")
+                        .with(SecurityMockMvcRequestPostProcessors.csrf())
+                        .session(session)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"plate\":\"fmt 12d\",\"vehicleTypeId\":\"%s\"}".formatted(CAR_VEHICLE_TYPE_ID)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error").value("PLATE_FORMAT_MISMATCH"))
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("motocicleta")));
+        mockMvc.perform(get("/api/parking-sessions/active").param("plate", "FMT12D").session(session))
+                .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
     void registrarIngresoSinTipoDeVehiculoEsRechazado() throws Exception {
         MockHttpSession session = loginAs("admin", "admin123");
 

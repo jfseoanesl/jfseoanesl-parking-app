@@ -46,6 +46,7 @@ public class ParkingEntryService {
         VehicleType vehicleType = vehicleTypeRepository.findById(vehicleTypeId)
                 .filter(VehicleType::active)
                 .orElseThrow(() -> new NotFoundException("Tipo de vehículo no encontrado o inactivo"));
+        com.parking.domain.model.PlateFormat.validate(plate, vehicleType.code()); // BR-036
 
         // BR-001: la barrera definitiva es el indice unico condicional en BD; esta verificacion
         // da una respuesta rapida y un mensaje claro antes de llegar a la base de datos.

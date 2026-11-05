@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronDown, CircleCheck, Printer } from 'lucide-react'
+import { ChevronDown, CircleCheck, Printer, TriangleAlert } from 'lucide-react'
 import { api, ApiError } from '../api/client'
 import type { ParkingConfiguration, ParkingSession, VehicleType } from '../api/types'
 import { DEFAULT_RECEIPT_FORMAT, parseReceiptFormat } from '../lib/receiptFormat'
+import { detectPlateType, plateFormatIssue } from '../lib/plateFormat'
 import { PlateBadge } from '../components/Badges'
 import { Button } from '../components/Button'
 import { Alert, Skeleton } from '../components/Feedback'
@@ -24,6 +25,8 @@ export default function NewEntryPage() {
   const [vehicleTypes, setVehicleTypes] = useState<VehicleType[] | null>(null)
   const [plate, setPlate] = useState('')
   const [vehicleTypeId, setVehicleTypeId] = useState('')
+  /** El usuario eligió el tipo a mano: ya no se ajusta solo según la placa (BR-036). */
+  const [typeChosen, setTypeChosen] = useState(false)
   const [showNotes, setShowNotes] = useState(false)
   const [notes, setNotes] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -50,6 +53,20 @@ export default function NewEntryPage() {
       })
   }, [])
 
+  const selectedType = vehicleTypes?.find((t) => t.id === vehicleTypeId)
+  // BR-036: el aviso aparece desde 5 caracteres (largo mínimo de una placa de moto antigua).
+  const formatIssue = plate.length >= 5 ? plateFormatIssue(plate, selectedType?.code) : null
+  const suggestedType = formatIssue?.suggested ? vehicleTypes?.find((t) => t.code === formatIssue.suggested) : undefined
+
+  function handlePlateChange(value: string) {
+    const normalized = normalizePlate(value)
+    setPlate(normalized)
+    // Si el usuario no eligió el tipo, se ajusta al que corresponde a la placa.
+    const detected = detectPlateType(normalized)
+    const match = detected ? vehicleTypes?.find((t) => t.code === detected) : undefined
+    if (!typeChosen && match) setVehicleTypeId(match.id)
+  }
+
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
     setError(null)
@@ -66,6 +83,7 @@ export default function NewEntryPage() {
       setLastEntry(created)
       // Lista para el siguiente ingreso sin navegar (RNF-001): se conserva el tipo elegido.
       setPlate('')
+      setTypeChosen(false)
       setNotes('')
       setShowNotes(false)
       plateRef.current?.focus()
@@ -95,7 +113,9 @@ export default function NewEntryPage() {
             maxLength={10}
             className="block min-h-16 w-full rounded-xl border-2 border-neutral-900 bg-plate-yellow px-3 text-center font-mono text-4xl font-bold tracking-[0.2em] text-neutral-900 uppercase transition-shadow duration-150 placeholder:text-neutral-900/25 focus:ring-4 focus:ring-primary-200 focus:outline-none"
             value={plate}
-            onChange={(e) => setPlate(normalizePlate(e.target.value))}
+            onChange={(e) => handlePlateChange(e.target.value)}
+            aria-describedby={formatIssue ? 'plate-format' : undefined}
+            aria-invalid={formatIssue ? true : undefined}
             placeholder="ABC123"
             required
           />
@@ -114,7 +134,10 @@ export default function NewEntryPage() {
           <ChoiceGroup
             label="Tipo de vehículo"
             value={vehicleTypeId}
-            onChange={setVehicleTypeId}
+            onChange={(id) => {
+              setVehicleTypeId(id)
+              setTypeChosen(true)
+            }}
             options={vehicleTypes.map((type) => ({
               value: type.id,
               label: type.name,
@@ -152,9 +175,30 @@ export default function NewEntryPage() {
           )}
         </div>
 
+        {formatIssue && (
+          <div id="plate-format" role="alert" className="space-y-3 rounded-xl border border-warning-200 bg-warning-50 p-4 text-sm text-warning-800">
+            <p className="flex items-start gap-2">
+              <TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0" />
+              {formatIssue.message}.
+              {!formatIssue.suggested && ' Formato esperado: ABC123 (automóvil) o ABC12D / ABC12 (motocicleta).'}
+            </p>
+            {suggestedType && (
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setVehicleTypeId(suggestedType.id)
+                  setTypeChosen(true)
+                }}
+              >
+                Cambiar a {suggestedType.name}
+              </Button>
+            )}
+          </div>
+        )}
+
         {error && <Alert>{error}</Alert>}
 
-        <Button type="submit" size="lg" fullWidth loading={submitting} disabled={!vehicleTypeId || !plate}>
+        <Button type="submit" size="lg" fullWidth loading={submitting} disabled={!vehicleTypeId || !plate || formatIssue !== null}>
           {submitting ? 'Registrando…' : 'Confirmar ingreso'}
         </Button>
       </form>

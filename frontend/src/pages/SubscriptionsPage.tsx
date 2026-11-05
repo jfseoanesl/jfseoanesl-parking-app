@@ -6,6 +6,7 @@ import type { PaymentMethod, Subscription, SubscriptionPayment, VehicleType } fr
 import { useAuth } from '../auth/AuthContext'
 import { formatCurrency, formatDate, formatDateTime } from '../lib/format'
 import { matchesSubscription, SUBSCRIPTION_STATUS } from '../lib/subscription'
+import { detectPlateType, plateFormatIssue } from '../lib/plateFormat'
 import { Button } from '../components/Button'
 import { Alert, EmptyState, Skeleton } from '../components/Feedback'
 import { SelectField, TextField } from '../components/Form'
@@ -77,6 +78,10 @@ export default function SubscriptionsPage() {
 
   const visible = useMemo(() => (subscriptions ?? []).filter((s) => matchesSubscription(s, query)), [subscriptions, query])
   const vehicleTypeName = (id: string) => vehicleTypes.find((t) => t.id === id)?.name ?? 'Vehículo'
+  // BR-036: aviso por placa cuando no corresponde al formato de su tipo.
+  const vehicleIssue = (v: VehicleRow) =>
+    v.plate.length >= 5 ? plateFormatIssue(v.plate, vehicleTypes.find((t) => t.id === v.vehicleTypeId)?.code) : null
+  const hasPlateIssues = form.vehicles.some((v) => vehicleIssue(v) !== null)
 
   function openCreate() {
     setEditingId(null)
@@ -242,13 +247,23 @@ export default function SubscriptionsPage() {
               <legend className="label">Placas autorizadas</legend>
               <p className="mb-2 text-sm text-neutral-500">Puede entrar cualquiera de ellas, pero solo una a la vez.</p>
               <ul className="space-y-2">
-                {form.vehicles.map((v, i) => (
+                {form.vehicles.map((v, i) => {
+                  const issue = vehicleIssue(v)
+                  const suggested = issue?.suggested ? vehicleTypes.find((t) => t.code === issue.suggested) : undefined
+                  return (
                   <li key={i} className="flex flex-wrap items-end gap-2">
                     <TextField
                       label={`Placa ${i + 1}`}
                       className="min-w-32 flex-1"
                       value={v.plate}
-                      onChange={(e) => setVehicle(i, { plate: e.target.value.toUpperCase().replace(/\s+/g, '') })}
+                      onChange={(e) => {
+                        const plate = e.target.value.toUpperCase().replace(/\s+/g, '')
+                        // Si la placa corresponde a un tipo con formato oficial, se elige ese tipo.
+                        const detected = detectPlateType(plate)
+                        const match = detected ? vehicleTypes.find((t) => t.code === detected) : undefined
+                        setVehicle(i, match ? { plate, vehicleTypeId: match.id } : { plate })
+                      }}
+                      aria-invalid={issue ? true : undefined}
                       autoComplete="off"
                     />
                     <SelectField
@@ -269,8 +284,23 @@ export default function SubscriptionsPage() {
                       icon={<Trash2 aria-hidden className="size-4" />}
                       onClick={() => setForm((f) => ({ ...f, vehicles: f.vehicles.filter((_, j) => j !== i) }))}
                     />
+                    {issue && (
+                      <p role="alert" className="flex w-full flex-wrap items-center gap-2 text-sm text-warning-800">
+                        {issue.message}.
+                        {suggested && (
+                          <button
+                            type="button"
+                            className="font-medium text-primary-700 underline"
+                            onClick={() => setVehicle(i, { vehicleTypeId: suggested.id })}
+                          >
+                            Cambiar a {suggested.name}
+                          </button>
+                        )}
+                      </p>
+                    )}
                   </li>
-                ))}
+                  )
+                })}
               </ul>
               <Button
                 variant="secondary"
@@ -287,7 +317,7 @@ export default function SubscriptionsPage() {
               <Button variant="secondary" onClick={() => setShowForm(false)}>
                 Cancelar
               </Button>
-              <Button type="submit" loading={saving}>
+              <Button type="submit" loading={saving} disabled={hasPlateIssues}>
                 {editingId ? 'Guardar cambios' : 'Crear mensualidad'}
               </Button>
             </div>

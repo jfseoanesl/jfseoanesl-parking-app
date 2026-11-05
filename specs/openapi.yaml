@@ -130,7 +130,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/ParkingSessionSummary' }
         '409':
-          description: Ya existe un parqueo activo para esa placa (BR-001)
+          description: 'DUPLICATE_ACTIVE_PLATE si ya existe un parqueo activo para esa placa (BR-001), o PLATE_FORMAT_MISMATCH si la placa no tiene el formato de su tipo de vehículo: automóvil ABC123, motocicleta ABC12D o ABC12 (BR-036)'
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ApiError' }

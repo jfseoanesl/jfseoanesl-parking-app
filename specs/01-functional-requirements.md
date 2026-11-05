@@ -53,7 +53,7 @@
 
 | ID | Descripción | Actor | Prioridad | Reglas relacionadas |
 |---|---|---|---|---|
-| RF-023 | El empleado debe poder registrar el ingreso de un vehículo indicando placa y tipo de vehículo. | Empleado | M | BR-001, BR-002 |
+| RF-023 | El empleado debe poder registrar el ingreso de un vehículo indicando placa y tipo de vehículo; la placa debe tener el formato de su tipo (automóvil `ABC123`, motocicleta `ABC12D`/`ABC12`). | Empleado | M | BR-001, BR-002, BR-036 |
 | RF-024 | El sistema debe normalizar la placa automáticamente (mayúsculas, sin espacios extra) antes de guardar. | — | M | BR-002 |
 | RF-025 | El sistema debe asignar automáticamente fecha y hora de ingreso (no editable manualmente por el empleado). | — | M | BR-026 |
 | RF-026 | El sistema debe impedir un segundo ingreso activo para una placa que ya tiene sesión `EN_PARQUEADERO`. | — | M | BR-001 |

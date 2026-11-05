@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { ADMIN_PASSWORD, ADMIN_USERNAME } from './credentials'
+import { carPlate } from './plates'
 
 /**
  * RF-074 a RF-077: crear mensualidad -> cobrarla en caja -> ingreso reconocido -> salida sin cobro
@@ -30,7 +31,7 @@ test.describe('Mensualidades', () => {
 
   test('cobro mensual, ingreso reconocido y salida sin cobro', async ({ page }) => {
     const suffix = Date.now().toString().slice(-5)
-    const plate = `MEN${suffix}`
+    const plate = carPlate()
     const customer = `Cliente E2E ${suffix}`
 
     await login(page)
@@ -85,7 +86,7 @@ test.describe('Mensualidades', () => {
 
   test('reporte de mensualidades con filtros y exportación a Excel', async ({ page }) => {
     const suffix = Date.now().toString().slice(-5)
-    const plate = `RPE${suffix}`
+    const plate = carPlate()
     const customer = `Reporte E2E ${suffix}`
 
     await login(page)

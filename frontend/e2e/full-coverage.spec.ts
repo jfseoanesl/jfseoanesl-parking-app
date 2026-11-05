@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { ADMIN_PASSWORD, ADMIN_USERNAME } from './credentials'
+import { carPlate } from './plates'
 
 /**
  * Cierre de brechas funcionales: comprobante imprimible (RF-050), operaciones del turno (RF-059),
@@ -35,8 +36,9 @@ async function registerEntry(page: Page, plate: string) {
   await expect(page.getByText(`Ingreso registrado: ${plate}`)).toBeVisible()
 }
 
-function uniquePlate(prefix: string) {
-  return `${prefix}${Date.now().toString().slice(-5)}`
+/** Placa única de automóvil (BR-036); el prefijo solo documenta para qué prueba es. */
+function uniquePlate(_prefix: string) {
+  return carPlate()
 }
 
 test.describe('Funcionalidades administrativas completas', () => {

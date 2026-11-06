@@ -29,7 +29,7 @@ El proyecto se desarrolló con *Spec-Driven Development*. La especificación com
 ## Funcionalidades
 
 **Operación diaria (empleado y administrador)**
-- **Ingreso de vehículos:** la placa se normaliza al escribir (mayúsculas, sin espacios) y debe tener el **formato oficial de su tipo** (automóvil `ABC123`, motocicleta `ABC12D` o `ABC12`); la pantalla avisa y sugiere el tipo correcto. No puede haber dos sesiones activas con la misma placa. Cada ingreso recibe un consecutivo **`ING-000001`** y se puede imprimir un **comprobante de ingreso** para el cliente.
+- **Ingreso de vehículos:** la placa se normaliza al escribir (mayúsculas, sin espacios) y debe tener el **formato oficial de su tipo** (automóvil `ABC123`, motocicleta `ABC12D` o `ABC12`); la pantalla avisa y sugiere el tipo correcto. El administrador puede desactivar esta validación en **Configuración**. No puede haber dos sesiones activas con la misma placa. Cada ingreso recibe un consecutivo **`ING-000001`** y se puede imprimir un **comprobante de ingreso** para el cliente.
 - **Vehículos parqueados:** búsqueda por placa, filtro por tipo de vehículo y orden por hora de ingreso o tiempo de permanencia.
 - **Salida y cobro:**
   - el valor lo calcula el motor de tarifas;

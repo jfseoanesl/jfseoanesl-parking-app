@@ -280,13 +280,18 @@ public class SubscriptionService {
             throw new IllegalArgumentException("Registre al menos una placa autorizada");
         }
         Set<String> seen = new HashSet<>();
+        // BR-036: solo si el administrador mantiene activa la validación en Configuración.
+        boolean checkPlateFormat = configurationRepository.find()
+                .map(com.parking.domain.model.Configuration::plateFormatValidation).orElse(true);
         for (SubscriptionVehicle v : s.vehicles()) {
             if (!seen.add(v.plate())) {
                 throw new IllegalArgumentException("La placa " + v.plate() + " está repetida");
             }
             VehicleType type = vehicleTypeRepository.findById(v.vehicleTypeId()).filter(VehicleType::active)
                     .orElseThrow(() -> new NotFoundException("Tipo de vehículo no encontrado o inactivo"));
-            com.parking.domain.model.PlateFormat.validate(v.plate(), type.code()); // BR-036
+            if (checkPlateFormat) {
+                com.parking.domain.model.PlateFormat.validate(v.plate(), type.code()); // BR-036
+            }
             subscriptionRepository.findVehicleByPlate(v.plate())
                     .filter(existing -> !existing.subscriptionId().equals(s.id()))
                     .ifPresent(existing -> {

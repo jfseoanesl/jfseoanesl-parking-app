@@ -36,7 +36,8 @@ public class ConfigurationController {
                                          @AuthenticationPrincipal ParkingUserPrincipal principal) {
         var input = new ConfigurationService.ConfigurationInput(request.parkingName(), request.nit(),
                 request.address(), request.phone(), request.maxCapacity(), request.timezone(), request.currency(),
-                request.receiptFormatJson(), request.subscriptionGraceDays());
+                request.receiptFormatJson(), request.subscriptionGraceDays(),
+                request.plateFormatValidation());
         return ConfigurationResponse.from(configurationService.update(input, principal.id()));
     }
 }

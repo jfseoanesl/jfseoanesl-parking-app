@@ -336,6 +336,45 @@ class ParkingOperationsIntegrationTest {
     }
 
     @Test
+    void conLaValidacionDeFormatoDesactivadaLaPlacaSoloCumpleBr002() throws Exception {
+        MockHttpSession session = loginAs("admin", "admin123");
+        try {
+            setPlateFormatValidation(session, false);
+            mockMvc.perform(get("/api/configuration").session(session))
+                    .andExpect(jsonPath("$.plateFormatValidation").value(false));
+            // BR-036 desactivada: una placa de moto se acepta como automovil.
+            mockMvc.perform(post("/api/parking-sessions")
+                            .with(SecurityMockMvcRequestPostProcessors.csrf())
+                            .session(session)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"plate\":\"OFF12D\",\"vehicleTypeId\":\"%s\"}".formatted(CAR_VEHICLE_TYPE_ID)))
+                    .andExpect(status().isCreated());
+        } finally {
+            setPlateFormatValidation(session, true);
+        }
+        mockMvc.perform(post("/api/parking-sessions")
+                        .with(SecurityMockMvcRequestPostProcessors.csrf())
+                        .session(session)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"plate\":\"ONN12D\",\"vehicleTypeId\":\"%s\"}".formatted(CAR_VEHICLE_TYPE_ID)))
+                .andExpect(jsonPath("$.error").value("PLATE_FORMAT_MISMATCH"));
+    }
+
+    private void setPlateFormatValidation(MockHttpSession session, boolean enabled) throws Exception {
+        String current = mockMvc.perform(get("/api/configuration").session(session))
+                .andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
+        java.util.Map<String, Object> config = new java.util.LinkedHashMap<>(
+                com.jayway.jsonpath.JsonPath.read(current, "$"));
+        config.put("plateFormatValidation", enabled);
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/configuration")
+                        .with(SecurityMockMvcRequestPostProcessors.csrf())
+                        .session(session)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(new tools.jackson.databind.ObjectMapper().writeValueAsString(config)))
+                .andExpect(status().isOk());
+    }
+
+    @Test
     void registrarIngresoSinTipoDeVehiculoEsRechazado() throws Exception {
         MockHttpSession session = loginAs("admin", "admin123");
 

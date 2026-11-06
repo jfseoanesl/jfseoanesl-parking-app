@@ -364,6 +364,8 @@ Formulario de tarifa (crear/editar) en pantalla completa o panel lateral en desk
 └──────────────────────────┘
 ```
 
+Debajo de los días de gracia, la casilla **Validar el formato de placa según el tipo de vehículo** (BR-036, activada por defecto) con la explicación de los formatos. Desactivada, Nuevo ingreso y Mensualidades no muestran el aviso de formato.
+
 ### 5.8.1 Reportes → pestaña Mensualidades (RF-078)
 
 - Selector superior **General | Mensualidades**. En la pestaña Mensualidades:

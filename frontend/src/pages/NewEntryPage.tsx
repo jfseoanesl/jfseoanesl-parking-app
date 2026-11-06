@@ -33,13 +33,18 @@ export default function NewEntryPage() {
   const [submitting, setSubmitting] = useState(false)
   const navigate = useNavigate()
   const [printOnEntry, setPrintOnEntry] = useState(DEFAULT_RECEIPT_FORMAT.printOnEntry)
+  /** BR-036: el administrador puede desactivar la validación del formato en Configuración. */
+  const [validatePlateFormat, setValidatePlateFormat] = useState(true)
   /** Último ingreso registrado, para ofrecer su comprobante (RF-072) sin bloquear el siguiente. */
   const [lastEntry, setLastEntry] = useState<ParkingSession | null>(null)
 
   useEffect(() => {
     api
       .get<ParkingConfiguration>('/configuration')
-      .then((c) => setPrintOnEntry(parseReceiptFormat(c.receiptFormatJson).printOnEntry))
+      .then((c) => {
+        setPrintOnEntry(parseReceiptFormat(c.receiptFormatJson).printOnEntry)
+        setValidatePlateFormat(c.plateFormatValidation ?? true)
+      })
       .catch(() => undefined)
     api
       .get<VehicleType[]>('/vehicle-types')
@@ -55,7 +60,7 @@ export default function NewEntryPage() {
 
   const selectedType = vehicleTypes?.find((t) => t.id === vehicleTypeId)
   // BR-036: el aviso aparece desde 5 caracteres (largo mínimo de una placa de moto antigua).
-  const formatIssue = plate.length >= 5 ? plateFormatIssue(plate, selectedType?.code) : null
+  const formatIssue = validatePlateFormat && plate.length >= 5 ? plateFormatIssue(plate, selectedType?.code) : null
   const suggestedType = formatIssue?.suggested ? vehicleTypes?.find((t) => t.code === formatIssue.suggested) : undefined
 
   function handlePlateChange(value: string) {

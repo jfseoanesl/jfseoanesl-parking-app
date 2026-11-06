@@ -1579,6 +1579,8 @@ components:
         timezone: { type: string, example: America/Bogota }
         currency: { type: string, example: COP }
         receiptFormatJson: { type: string, nullable: true }
+        subscriptionGraceDays: { type: integer }
+        plateFormatValidation: { type: boolean, description: BR-036. Si se valida el formato de placa según el tipo de vehículo. }
 
     ConfigurationUpdateRequest:
       type: object
@@ -1591,6 +1593,7 @@ components:
         maxCapacity: { type: integer, minimum: 0, nullable: true }
         timezone: { type: string, nullable: true }
         currency: { type: string, nullable: true }
+        plateFormatValidation: { type: boolean, nullable: true, description: BR-036; null conserva el valor actual. }
         receiptFormatJson:
           type: string
           nullable: true

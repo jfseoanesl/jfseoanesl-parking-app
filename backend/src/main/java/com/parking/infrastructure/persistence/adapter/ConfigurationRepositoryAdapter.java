@@ -27,13 +27,14 @@ public class ConfigurationRepositoryAdapter implements ConfigurationRepository {
         ConfigurationEntity entity = new ConfigurationEntity(configuration.id(), configuration.parkingName(),
                 configuration.nit(), configuration.address(), configuration.phone(), configuration.maxCapacity(),
                 configuration.timezone(), configuration.currency(), configuration.receiptFormatJson(),
-                configuration.updatedAt(), configuration.updatedBy(), configuration.subscriptionGraceDays());
+                configuration.updatedAt(), configuration.updatedBy(), configuration.subscriptionGraceDays(),
+                configuration.plateFormatValidation());
         return toDomain(springDataRepository.save(entity));
     }
 
     static Configuration toDomain(ConfigurationEntity e) {
         return new Configuration(e.getId(), e.getParkingName(), e.getNit(), e.getAddress(), e.getPhone(),
                 e.getMaxCapacity(), e.getTimezone(), e.getCurrency(), e.getReceiptFormatJson(), e.getUpdatedAt(),
-                e.getUpdatedBy(), e.getSubscriptionGraceDays());
+                e.getUpdatedBy(), e.getSubscriptionGraceDays(), e.isPlateFormatValidation());
     }
 }

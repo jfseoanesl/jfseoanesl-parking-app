@@ -29,6 +29,7 @@ export default function ConfigurationPage() {
   const [timezone, setTimezone] = useState('America/Bogota')
   const [currency, setCurrency] = useState('COP')
   const [graceDays, setGraceDays] = useState('3')
+  const [plateFormatValidation, setPlateFormatValidation] = useState(true)
   const [receiptFormat, setReceiptFormat] = useState<ReceiptFormat>(DEFAULT_RECEIPT_FORMAT)
 
   function load() {
@@ -47,6 +48,7 @@ export default function ConfigurationPage() {
         setTimezone(c.timezone)
         setCurrency(c.currency)
         setGraceDays(String(c.subscriptionGraceDays ?? 3))
+        setPlateFormatValidation(c.plateFormatValidation ?? true)
         setReceiptFormat(parseReceiptFormat(c.receiptFormatJson))
         setVehicleTypes(vt)
         setPaymentMethods(pm)
@@ -73,6 +75,7 @@ export default function ConfigurationPage() {
         // Se envía siempre: omitirlo borraba el formato del comprobante en cada guardado (RF-015).
         receiptFormatJson: JSON.stringify(receiptFormat),
         subscriptionGraceDays: graceDays === '' ? null : Number(graceDays),
+        plateFormatValidation,
       })
       toast('Configuración guardada')
       load()
@@ -121,6 +124,22 @@ export default function ConfigurationPage() {
               onChange={(e) => setGraceDays(e.target.value)}
               hint="Días después del corte en que la salida sigue sin cobro."
             />
+
+            <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 px-3 py-3 text-sm hover:bg-neutral-50">
+              <input
+                type="checkbox"
+                className="mt-0.5 size-4 accent-primary-600"
+                checked={plateFormatValidation}
+                onChange={(e) => setPlateFormatValidation(e.target.checked)}
+              />
+              <span>
+                <span className="block font-medium text-neutral-800">Validar el formato de placa según el tipo de vehículo</span>
+                <span className="block text-neutral-500">
+                  Automóvil ABC123, motocicleta ABC12D o ABC12 (Ministerio de Transporte). Se aplica al ingreso y a las placas de
+                  mensualidades. Desactivada, solo se exigen de 3 a 10 letras o números.
+                </span>
+              </span>
+            </label>
 
             <fieldset className="border-t border-neutral-100 pt-4">
               <legend className="section-title">Formato del comprobante</legend>

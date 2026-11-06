@@ -55,4 +55,8 @@ public class ConfigurationEntity {
 
     @Column(name = "subscription_grace_days", nullable = false)
     private int subscriptionGraceDays;
+
+    /** BR-036. Inicializado en true para que un respaldo anterior sin este campo la deje activa. */
+    @Column(name = "plate_format_validation", nullable = false)
+    private boolean plateFormatValidation = true;
 }

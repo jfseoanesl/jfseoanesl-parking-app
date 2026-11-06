@@ -32,7 +32,8 @@ public class ConfigurationService {
 
     public record ConfigurationInput(String parkingName, String nit, String address, String phone,
                                       Integer maxCapacity, String timezone, String currency,
-                                      String receiptFormatJson, Integer subscriptionGraceDays) {
+                                      String receiptFormatJson, Integer subscriptionGraceDays,
+                                      Boolean plateFormatValidation) {
     }
 
     @Transactional
@@ -48,7 +49,8 @@ public class ConfigurationService {
                 input.timezone() != null ? input.timezone() : existing.timezone(),
                 input.currency() != null ? input.currency() : existing.currency(), input.receiptFormatJson(),
                 timeProvider.now(), actorId,
-                input.subscriptionGraceDays() != null ? input.subscriptionGraceDays() : existing.subscriptionGraceDays());
+                input.subscriptionGraceDays() != null ? input.subscriptionGraceDays() : existing.subscriptionGraceDays(),
+                input.plateFormatValidation() != null ? input.plateFormatValidation() : existing.plateFormatValidation());
         Configuration saved = configurationRepository.save(updated);
 
         // BR-025: valor anterior y nuevo de todos los campos (antes se registraba null/null y no se
@@ -85,6 +87,7 @@ public class ConfigurationService {
                 + ",\"timezone\":" + str(c.timezone())
                 + ",\"currency\":" + str(c.currency())
                 + ",\"receiptFormatJson\":" + str(c.receiptFormatJson())
-                + ",\"subscriptionGraceDays\":" + c.subscriptionGraceDays() + "}";
+                + ",\"subscriptionGraceDays\":" + c.subscriptionGraceDays()
+                + ",\"plateFormatValidation\":" + c.plateFormatValidation() + "}";
     }
 }

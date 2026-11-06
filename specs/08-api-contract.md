@@ -123,7 +123,7 @@ Cambios relacionados: `POST /api/parking-sessions` devuelve `subscriptionId`, `s
 | Método | Ruta | Rol | Descripción |
 |---|---|---|---|
 | GET | `/api/configuration` | Admin, Empleado (lectura limitada) | Configuración del parqueadero. |
-| PUT | `/api/configuration` | Admin | Actualiza configuración (RF-010 a RF-015). |
+| PUT | `/api/configuration` | Admin | Actualiza configuración (RF-010 a RF-015). `plateFormatValidation` (boolean, BR-036; `null` conserva el valor) activa o desactiva la validación del formato de placa. |
 | GET | `/api/vehicle-types` | Admin, Empleado | Lista tipos de vehículo activos. |
 | POST | `/api/vehicle-types` | Admin | Crea tipo de vehículo (RF-017). |
 

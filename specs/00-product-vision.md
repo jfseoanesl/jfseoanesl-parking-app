@@ -394,3 +394,5 @@ transferencia real de la instalación SQLite a una MySQL temporal, con conteos y
 
 **Formato de placa por tipo de vehículo (2026-11-05):** BR-036 y enmienda de BR-002. La placa debe tener el formato oficial de Colombia de su tipo: automóvil `ABC123`, motocicleta `ABC12D` o la antigua `ABC12`. Si no corresponde, el ingreso y las placas de mensualidades se rechazan con `PLATE_FORMAT_MISMATCH`; la pantalla avisa en vivo, ofrece cambiar al tipo correcto y preselecciona el tipo según la placa. Los tipos creados por el administrador conservan la validación laxa. Verificado: backend 125/125 en SQLite y MySQL, frontend 34/34 y E2E 28/28.
 
+**Validación de placa configurable (2026-11-06):** enmienda de BR-036 y RF-015a. El administrador activa o desactiva la validación del formato de placa con una casilla en Configuración (activada por defecto, migración V10). Desactivada, solo se aplica BR-002 y las pantallas no muestran el aviso.
+

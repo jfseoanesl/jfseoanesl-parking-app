@@ -26,4 +26,35 @@ test.describe('Formato de placa por tipo de vehículo', () => {
     await page.getByRole('button', { name: 'Confirmar ingreso' }).click()
     await expect(page.getByText(`Ingreso registrado: ${plate}`)).toBeVisible()
   })
+
+  test('con la validacion desactivada en Configuracion no hay aviso', async ({ page }) => {
+    await page.goto('/login')
+    await page.getByLabel('Usuario').fill(ADMIN_USERNAME)
+    await page.getByLabel('Contraseña').fill(ADMIN_PASSWORD)
+    await page.getByRole('button', { name: 'Iniciar sesión' }).click()
+    await expect(page).toHaveURL('/')
+
+    const toggle = async (checked: boolean) => {
+      await page.goto('/configuracion')
+      const box = page.getByLabel(/Validar el formato de placa/)
+      await box.setChecked(checked)
+      await page.getByRole('button', { name: 'Guardar cambios' }).click()
+      await expect(page.getByText('Configuración guardada')).toBeVisible()
+      await page.reload()
+      await expect(page.getByLabel(/Validar el formato de placa/)).toBeChecked({ checked })
+    }
+
+    await toggle(false)
+    try {
+      const plate = motorcyclePlate()
+      await page.goto('/ingreso')
+      await page.getByRole('button', { name: 'Automóvil' }).click()
+      await page.getByPlaceholder('ABC123').fill(plate)
+      await expect(page.getByText('tiene formato de motocicleta')).toHaveCount(0)
+      await page.getByRole('button', { name: 'Confirmar ingreso' }).click()
+      await expect(page.getByText(`Ingreso registrado: ${plate}`)).toBeVisible()
+    } finally {
+      await toggle(true)
+    }
+  })
 })

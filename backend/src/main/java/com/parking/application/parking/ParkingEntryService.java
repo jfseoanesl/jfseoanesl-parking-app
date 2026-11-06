@@ -8,6 +8,9 @@ import com.parking.domain.model.PlateNormalizer;
 import com.parking.domain.model.Subscription;
 import com.parking.domain.model.VehicleType;
 import com.parking.application.subscription.SubscriptionService;
+import com.parking.domain.model.PlateFormat;
+import com.parking.domain.repository.ConfigurationRepository;
+import com.parking.domain.model.Configuration;
 import com.parking.domain.repository.ParkingSessionRepository;
 import com.parking.domain.repository.VehicleTypeRepository;
 import com.parking.domain.time.TimeProvider;
@@ -25,6 +28,7 @@ public class ParkingEntryService {
     private final VehicleTypeRepository vehicleTypeRepository;
     private final TimeProvider timeProvider;
     private final SubscriptionService subscriptionService;
+    private final ConfigurationRepository configurationRepository;
 
     /** {@code subscriptionNotice}: aviso para el empleado cuando la placa es de una mensualidad (BR-029). */
     public record EntryResult(ParkingSession session, String subscriptionNotice) {
@@ -32,8 +36,10 @@ public class ParkingEntryService {
 
     public ParkingEntryService(ParkingSessionRepository parkingSessionRepository,
                                 VehicleTypeRepository vehicleTypeRepository, TimeProvider timeProvider,
-                                SubscriptionService subscriptionService) {
+                                SubscriptionService subscriptionService,
+                                ConfigurationRepository configurationRepository) {
         this.subscriptionService = subscriptionService;
+        this.configurationRepository = configurationRepository;
         this.parkingSessionRepository = parkingSessionRepository;
         this.vehicleTypeRepository = vehicleTypeRepository;
         this.timeProvider = timeProvider;
@@ -46,7 +52,10 @@ public class ParkingEntryService {
         VehicleType vehicleType = vehicleTypeRepository.findById(vehicleTypeId)
                 .filter(VehicleType::active)
                 .orElseThrow(() -> new NotFoundException("Tipo de vehículo no encontrado o inactivo"));
-        com.parking.domain.model.PlateFormat.validate(plate, vehicleType.code()); // BR-036
+        // BR-036: solo si el administrador mantiene activa la validación en Configuración.
+        if (configurationRepository.find().map(Configuration::plateFormatValidation).orElse(true)) {
+            PlateFormat.validate(plate, vehicleType.code());
+        }
 
         // BR-001: la barrera definitiva es el indice unico condicional en BD; esta verificacion
         // da una respuesta rapida y un mensaje claro antes de llegar a la base de datos.

@@ -16,6 +16,8 @@ public record Configuration(
         Instant updatedAt,
         String updatedBy,
         /** BR-028: días de gracia de una mensualidad después de su fecha de corte. */
-        int subscriptionGraceDays
+        int subscriptionGraceDays,
+        /** BR-036: si se valida el formato de placa según el tipo de vehículo. */
+        boolean plateFormatValidation
 ) {
 }

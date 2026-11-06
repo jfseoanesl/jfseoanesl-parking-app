@@ -30,6 +30,7 @@
 | RF-012 | El administrador debe poder configurar la zona horaria del parqueadero (semilla: `America/Bogota`). | Administrador | M | BR-026 |
 | RF-013 | El administrador debe poder configurar la moneda (semilla: COP). | Administrador | S | — |
 | RF-014 | El administrador debe poder configurar el catálogo de medios de pago. | Administrador | M | BR-018 |
+| RF-015a | El administrador debe poder activar o desactivar la validación del formato de placa según el tipo de vehículo (por defecto activada). | Administrador | S | BR-036 |
 | RF-015 | El administrador debe poder configurar los campos visibles del comprobante de pago y si se ofrece imprimir comprobante al ingreso (`printOnEntry`, por defecto no) y/o a la salida (`printOnExit`, por defecto sí). | Administrador | S | BR-017 |
 
 ## Módulo: Tipos de vehículo

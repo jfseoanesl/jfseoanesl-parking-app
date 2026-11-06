@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { CalendarCheck, Car, ChevronDown, Pencil, Plus, Power, Receipt, Search, Trash2, Wallet, X } from 'lucide-react'
 import { api, ApiError } from '../api/client'
-import type { PaymentMethod, Subscription, SubscriptionPayment, VehicleType } from '../api/types'
+import type { PaymentMethod, Subscription, SubscriptionPayment, VehicleType, ParkingConfiguration } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
 import { formatCurrency, formatDate, formatDateTime } from '../lib/format'
 import { matchesSubscription, SUBSCRIPTION_STATUS } from '../lib/subscription'
@@ -44,6 +44,8 @@ export default function SubscriptionsPage() {
 
   const [subscriptions, setSubscriptions] = useState<Subscription[] | null>(null)
   const [vehicleTypes, setVehicleTypes] = useState<VehicleType[]>([])
+  /** BR-036: el administrador puede desactivar la validación del formato en Configuración. */
+  const [validatePlateFormat, setValidatePlateFormat] = useState(true)
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([])
   const [query, setQuery] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -71,6 +73,10 @@ export default function SubscriptionsPage() {
     load()
     api.get<VehicleType[]>('/vehicle-types').then(setVehicleTypes).catch(() => undefined)
     api
+      .get<ParkingConfiguration>('/configuration')
+      .then((c) => setValidatePlateFormat(c.plateFormatValidation ?? true))
+      .catch(() => undefined)
+    api
       .get<PaymentMethod[]>('/payment-methods')
       .then(setPaymentMethods)
       .catch(() => undefined)
@@ -80,7 +86,7 @@ export default function SubscriptionsPage() {
   const vehicleTypeName = (id: string) => vehicleTypes.find((t) => t.id === id)?.name ?? 'Vehículo'
   // BR-036: aviso por placa cuando no corresponde al formato de su tipo.
   const vehicleIssue = (v: VehicleRow) =>
-    v.plate.length >= 5 ? plateFormatIssue(v.plate, vehicleTypes.find((t) => t.id === v.vehicleTypeId)?.code) : null
+    validatePlateFormat && v.plate.length >= 5 ? plateFormatIssue(v.plate, vehicleTypes.find((t) => t.id === v.vehicleTypeId)?.code) : null
   const hasPlateIssues = form.vehicles.some((v) => vehicleIssue(v) !== null)
 
   function openCreate() {

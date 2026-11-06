@@ -206,6 +206,8 @@ Entidad de **fila única** (singleton lógico) por instalación.
 | timezone | string | no nulo, default `America/Bogota` (BR-026) |
 | currency | string | no nulo, default `COP` |
 | receiptFormatJson | text/json | configuración de campos visibles del comprobante |
+| subscriptionGraceDays | integer | no nulo, default 3 (BR-028) |
+| plateFormatValidation | boolean | no nulo, default true (BR-036) |
 | updatedAt | timestamp | no nulo |
 | updatedBy | UUID | FK → User |
 

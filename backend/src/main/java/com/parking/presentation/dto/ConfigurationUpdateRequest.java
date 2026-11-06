@@ -13,6 +13,8 @@ public record ConfigurationUpdateRequest(
         String currency,
         String receiptFormatJson,
         /** BR-028; null = conservar el valor actual. */
-        Integer subscriptionGraceDays
+        Integer subscriptionGraceDays,
+        /** BR-036; null = conservar el valor actual. */
+        Boolean plateFormatValidation
 ) {
 }

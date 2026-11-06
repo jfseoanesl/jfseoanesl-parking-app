@@ -171,6 +171,8 @@ export interface ParkingConfiguration {
   currency: string
   receiptFormatJson: string | null
   subscriptionGraceDays: number
+  /** BR-036: si se valida el formato de placa según el tipo de vehículo. */
+  plateFormatValidation: boolean
 }
 
 export type PaymentMethodCategory = 'CASH' | 'ELECTRONIC' | 'OTHER'

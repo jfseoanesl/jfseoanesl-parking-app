@@ -21,6 +21,7 @@ La placa normalizada debe tener el formato del Ministerio de Transporte para el 
 - **Motocicleta** (código `MOTORCYCLE`): tres letras, dos números y una letra, `ABC12D`, o la serie antigua de tres letras y dos números, `ABC12`.
 
 Si no corresponde, el ingreso (RF-023) o la placa autorizada de la mensualidad (RF-074) se rechazan con `PLATE_FORMAT_MISMATCH`. El mensaje indica si la placa tiene el formato del otro tipo ("ABC12D tiene formato de motocicleta, no de automóvil") o el formato esperado. La pantalla ofrece cambiar al tipo correcto y, si el usuario aún no eligió tipo, lo selecciona según la placa. Los tipos creados por el administrador con otro código no tienen formato oficial y solo aplican BR-002. Los datos existentes no se modifican.
+*Enmienda (2026-11-06):* la validación es configurable. El administrador la activa o desactiva con la casilla **Validar el formato de placa según el tipo de vehículo** en Configuración (`configuration.plate_format_validation`, activada por defecto). Desactivada, el ingreso y las mensualidades solo aplican BR-002 y la pantalla no muestra el aviso. El cambio queda en la auditoría de la configuración (BR-025).
 *Fuente:* Ministerio de Transporte (placa de motocicleta de tres letras y dos dígitos, con letra de serie en las series actuales; placa de servicio particular/público de tres letras y tres números). *Parametrizable:* no. *Origen:* solicitud del usuario (2026-11-05): bloquear y sugerir; aceptar `ABC12D` y `ABC12` para motos; aplicar en el ingreso y en las mensualidades.
 
 **BR-003 — RBAC estricto**
